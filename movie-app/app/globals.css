@@ -19,3 +19,27 @@ body {
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+input:-webkit-autofill,
+input:-webkit-autofill:focus {
+  font-size: inherit !important;
+  -webkit-text-fill-color: #fff !important;
+  -webkit-box-shadow: 0 0 0px 1000px #1F2937 inset !important;
+  box-shadow: 0 0 0px 1000px #1F2937 inset !important;
+  -webkit-transition: background-color 5000s ease-in-out 0s !important;
+  transition: background-color 5000s ease-in-out 0s !important;
+}
+
+@layer components {
+  .input-base {
+    @apply w-full h-12 bg-gray-800 text-white placeholder-gray-400 text-lg border-b-2 border-gray-600 mb-2 focus:outline-none transition-colors duration-200 ease-in-out hover:border-gray-500 focus:border-purple-500;
+  }
+
+  .button-base{
+    @apply w-full h-12 bg-purple-600 text-white rounded-3xl text-lg font-normal mt-5 transition-colors duration-200 ease-in-out hover:bg-purple-700
+  }
+
+  .label-base {
+    @apply text-gray-900 text-lg font-normal;
+  }
+}
