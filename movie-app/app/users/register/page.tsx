@@ -1,6 +1,30 @@
+"use client";
 import Link from "next/link";
+import { useState } from "react";
 
 const Register = () => {
+  const [registerUsername, setRegisterUsername] = useState('');
+  const [registerEmail, setRegisterEmail] = useState('');
+  const [registerPassword, setRegisterPassword] = useState('');
+  const [registerConfirmPassword, setRegisterConfirmPassword] = useState('');
+
+  const register = async () => {
+    const response = await fetch("http://localhost:3000/api/users/register", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        username: registerUsername,
+        email: registerEmail,
+        password: registerPassword,
+        confirmPassword: registerConfirmPassword,
+      }),
+    });
+    const data = await response.json();
+    console.log(data);
+  };
+
   return (
     <div className='flex justify-center relative min-h-screen bg-black'>
       <div className='w-full mx-auto max-w-xl px-6 lg:px-8 absolute py-20'>
@@ -22,6 +46,7 @@ const Register = () => {
               name='email'
               placeholder='E-mail'
               className='input-base'
+              onChange={(e) => setRegisterEmail(e.target.value)}
             />
 
             {/* Kullanıcı Adı */}
@@ -33,6 +58,7 @@ const Register = () => {
               name='username'
               placeholder='Kullanıcı Adı'
               className='input-base'
+              onChange={(e) => setRegisterUsername(e.target.value)}
             />
 
             {/* Şifre */}
@@ -44,6 +70,7 @@ const Register = () => {
               name='password'
               placeholder='Şifre'
               className='input-base'
+              onChange={(e) => setRegisterPassword(e.target.value)}
             />
 
             {/* Şifre Tekrar */}
@@ -58,10 +85,11 @@ const Register = () => {
               name='confirmPassword'
               placeholder='Şifre Tekrar'
               className='input-base'
+              onChange={(e) => setRegisterConfirmPassword(e.target.value)}
             />
 
             {/* Kayıt Ol Butonu */}
-            <button className='button-base'>
+            <button onClick={register} className='button-base'>
               Kayıt Ol
             </button>
 
