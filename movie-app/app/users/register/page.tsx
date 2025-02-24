@@ -1,110 +1,128 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import axios from 'axios';
+import axios from "axios";
+import { useRouter } from "next/navigation";
 
 const Register = () => {
-  const [registerUsername, setRegisterUsername] = useState('');
-  const [registerEmail, setRegisterEmail] = useState('');
-  const [registerPassword, setRegisterPassword] = useState('');
-  const [registerConfirmPassword, setRegisterConfirmPassword] = useState('');
+  const [registerUsername, setRegisterUsername] = useState("");
+  const [registerEmail, setRegisterEmail] = useState("");
+  const [registerPassword, setRegisterPassword] = useState("");
+  const [registerConfirmPassword, setRegisterConfirmPassword] = useState("");
+  const [message, setMessage] = useState("");
+  const router = useRouter();
 
-  const register = async () => {
-    const response = await fetch("http://localhost:3000/api/users/register", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        username: registerUsername,
-        email: registerEmail,
-        password: registerPassword,
-        confirmPassword: registerConfirmPassword,
-      }),
-    });
-    const data = await response.json();
-    console.log(data);
+  interface RegisterResponse {
+    data: string;
+  }  
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
+    e.preventDefault(); // Formun sayfayı yenilemesini engelle
+    setMessage("");
+
+    if (registerPassword !== registerConfirmPassword) {
+      setMessage("Şifreler uyuşmuyor!");
+      return;
+    }
+
+    try {
+      const response: RegisterResponse = await axios.post(
+        "http://localhost:3001/register",
+        {
+          username: registerUsername,
+          email: registerEmail,
+          password: registerPassword,
+        },
+        { withCredentials: true }
+      );
+
+      if (response.data === "User already exists") {
+        setMessage("Bu kullanıcı adı zaten alınmış.");
+      } else {
+        router.push("/");
+      }
+    } catch (err: any) {
+      console.error(err);
+      setMessage(
+        err.response?.data || "Bir hata oluştu, lütfen tekrar deneyin."
+      );
+    }
   };
 
   return (
     <div className='flex justify-center relative min-h-screen bg-black'>
       <div className='w-full mx-auto max-w-xl px-6 lg:px-8 absolute py-20'>
-        {/* Form kapsayıcı: Arka plan siyahın biraz açık tonu */}
-        <div className='rounded-2xl shadow-xl bg-gray-800'>
-          <div className='lg:p-14 p-7 mx-auto'>
-            <div className='mb-11'>
-              <h1 className='text-white text-center font-manrope text-3xl font-bold leading-10 mb-2'>
-                Hesap Oluştur
-              </h1>
+        <div className='rounded-2xl shadow-xl bg-gray-800 p-8'>
+          <h1 className='text-white text-center font-manrope text-3xl font-bold mb-6'>
+            Hesap Oluştur
+          </h1>
+
+          {message && (
+            <p className='text-red-500 text-center mb-4'>{message}</p>
+          )}
+
+          <form onSubmit={handleSubmit} className='space-y-4'>
+            <div>
+              <label className='block text-gray-200 mb-1'>E-mail</label>
+              <input
+                type='email'
+                value={registerEmail}
+                onChange={(e) => setRegisterEmail(e.target.value)}
+                placeholder='E-mail'
+                className='input-base'
+                required
+              />
             </div>
 
-            {/* Email */}
-            <label htmlFor='email' className='block text-gray-200 mb-1'>
-              Email
-            </label>
-            <input
-              type='email'
-              name='email'
-              placeholder='E-mail'
-              className='input-base'
-              onChange={(e) => setRegisterEmail(e.target.value)}
-            />
+            <div>
+              <label className='block text-gray-200 mb-1'>Kullanıcı Adı</label>
+              <input
+                type='text'
+                value={registerUsername}
+                onChange={(e) => setRegisterUsername(e.target.value)}
+                placeholder='Kullanıcı Adı'
+                className='input-base'
+                required
+              />
+            </div>
 
-            {/* Kullanıcı Adı */}
-            <label htmlFor='username' className='block text-gray-200 mb-1'>
-              Kullanıcı Adı
-            </label>
-            <input
-              type='text'
-              name='username'
-              placeholder='Kullanıcı Adı'
-              className='input-base'
-              onChange={(e) => setRegisterUsername(e.target.value)}
-            />
+            <div>
+              <label className='block text-gray-200 mb-1'>Şifre</label>
+              <input
+                type='password'
+                value={registerPassword}
+                onChange={(e) => setRegisterPassword(e.target.value)}
+                placeholder='Şifre'
+                className='input-base'
+                required
+              />
+            </div>
 
-            {/* Şifre */}
-            <label htmlFor='password' className='block text-gray-200 mb-1'>
-              Şifre
-            </label>
-            <input
-              type='password'
-              name='password'
-              placeholder='Şifre'
-              className='input-base'
-              onChange={(e) => setRegisterPassword(e.target.value)}
-            />
+            <div>
+              <label className='block text-gray-200 mb-1'>Şifre Tekrar</label>
+              <input
+                type='password'
+                value={registerConfirmPassword}
+                onChange={(e) => setRegisterConfirmPassword(e.target.value)}
+                placeholder='Şifre Tekrar'
+                className='input-base'
+                required
+              />
+            </div>
 
-            {/* Şifre Tekrar */}
-            <label
-              htmlFor='confirmPassword'
-              className='block text-gray-200 mb-1'
-            >
-              Şifre Tekrar
-            </label>
-            <input
-              type='password'
-              name='confirmPassword'
-              placeholder='Şifre Tekrar'
-              className='input-base'
-              onChange={(e) => setRegisterConfirmPassword(e.target.value)}
-            />
-
-            {/* Kayıt Ol Butonu */}
-            <button onClick={register} className='button-base'>
+            <button type='submit' className='button-base w-full'>
               Kayıt Ol
             </button>
+          </form>
 
-            {/* Giriş Yap Linki */}
-            <span className='flex justify-center text-gray-200 text-base font-medium leading-6 mt-6'>
-              Hesabın var mı?{" "}
-              <Link
-                href='/users/login'
-                className="text-purple-500 ml-2 relative after:content-[''] after:absolute after:left-0 after:bottom-0 after:w-full after:h-[2px] after:bg-purple-500 after:scale-x-0 after:transition-transform after:duration-300 hover:after:scale-x-100"
-              >
-                Giriş yap
-              </Link>
-            </span>
-          </div>
+          <p className='text-center text-gray-200 text-base mt-6'>
+            Hesabın var mı?{" "}
+            <Link
+              href='/users/login'
+              className="text-purple-500 ml-2 relative after:content-[''] after:absolute after:left-0 after:bottom-0 after:w-full after:h-[2px] after:bg-purple-500 after:scale-x-0 after:transition-transform after:duration-300 hover:after:scale-x-100"
+            >
+              Giriş yap
+            </Link>
+          </p>
         </div>
       </div>
     </div>

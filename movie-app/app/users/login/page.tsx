@@ -1,6 +1,9 @@
 import Link from "next/link";
+import { useState } from "react";
 
 const Login = () => {
+  const [loginUsername, setLoginUsername] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
   return (
     <div className='flex justify-center relative min-h-screen bg-black'>
       <div className='w-full mx-auto max-w-xl px-6 lg:px-8 absolute py-20'>
@@ -22,6 +25,7 @@ const Login = () => {
               name='email'
               placeholder='E-mail'
               className='input-base'
+              onChange={(e) => setLoginUsername(e.target.value)}
             />
 
             {/* Şifre */}
@@ -33,6 +37,7 @@ const Login = () => {
               name='password'
               placeholder='Şifre'
               className='input-base'
+              onChange={(e) => setLoginPassword(e.target.value)}
             />
             <span className='flex justify-end text-base font-medium leading-6'>
               <Link
