@@ -1,9 +1,15 @@
+"use client";
 import Link from "next/link";
 import { useState } from "react";
 
 const Login = () => {
-  const [loginUsername, setLoginUsername] = useState('');
+  const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+
+  const login = async () => {
+    
+
+  }
   return (
     <div className='flex justify-center relative min-h-screen bg-black'>
       <div className='w-full mx-auto max-w-xl px-6 lg:px-8 absolute py-20'>
@@ -25,7 +31,7 @@ const Login = () => {
               name='email'
               placeholder='E-mail'
               className='input-base'
-              onChange={(e) => setLoginUsername(e.target.value)}
+              onChange={(e) => setLoginEmail(e.target.value)}
             />
 
             {/* Şifre */}
@@ -48,7 +54,7 @@ const Login = () => {
               </Link>
             </span>
             {/* Kayıt Ol Butonu */}
-            <button className='button-base'>Giriş Yap</button>
+            <button className='button-base' onClick={login}>Giriş Yap</button>
 
             {/* Giriş Yap Linki */}
             <span className='flex justify-center text-gray-200 text-base font-medium leading-6 mt-6'>
