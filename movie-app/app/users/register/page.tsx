@@ -9,23 +9,73 @@ const Register = () => {
   const [registerEmail, setRegisterEmail] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
   const [registerConfirmPassword, setRegisterConfirmPassword] = useState("");
-  const [message, setMessage] = useState("");
+  const [errors, setErrors] = useState({
+    username: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
   const router = useRouter();
 
-  interface RegisterResponse {
-    data: string;
-  }  
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
-    e.preventDefault(); // Formun sayfayı yenilemesini engelle
-    setMessage("");
+  const validateForm = () => {
+    let isValid = true;
+    const newErrors = {
+      username: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+    };
 
-    if (registerPassword !== registerConfirmPassword) {
-      setMessage("Şifreler uyuşmuyor!");
+    // Kullanıcı adı validasyonu
+    if (!registerUsername) {
+      newErrors.username = "Kullanıcı adı boş bırakılamaz";
+      isValid = false;
+    } else if (registerUsername.length < 3) {
+      newErrors.username = "Kullanıcı adı en az 3 karakter olmalıdır";
+      isValid = false;
+    }
+
+    // Email validasyonu
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!registerEmail) {
+      newErrors.email = "Email alanı boş bırakılamaz";
+      isValid = false;
+    } else if (!emailRegex.test(registerEmail)) {
+      newErrors.email = "Geçerli bir email adresi giriniz";
+      isValid = false;
+    }
+
+    // Şifre validasyonu
+    if (!registerPassword) {
+      newErrors.password = "Şifre alanı boş bırakılamaz";
+      isValid = false;
+    } else if (registerPassword.length < 6) {
+      newErrors.password = "Şifre en az 6 karakter olmalıdır";
+      isValid = false;
+    }
+
+    // Şifre tekrar validasyonu
+    if (!registerConfirmPassword) {
+      newErrors.confirmPassword = "Şifre tekrar alanı boş bırakılamaz";
+      isValid = false;
+    } else if (registerPassword !== registerConfirmPassword) {
+      newErrors.confirmPassword = "Şifreler eşleşmiyor";
+      isValid = false;
+    }
+
+    setErrors(newErrors);
+    return isValid;
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    if (!validateForm()) {
       return;
     }
 
     try {
-      const response: RegisterResponse = await axios.post(
+      const response = await axios.post(
         "http://localhost:3001/register",
         {
           username: registerUsername,
@@ -35,16 +85,19 @@ const Register = () => {
         { withCredentials: true }
       );
 
-      if (response.data === "User already exists") {
-        setMessage("Bu kullanıcı adı zaten alınmış.");
-      } else {
-        router.push("/");
+      if (response.status === 200) {
+        router.push("/users/login");
       }
-    } catch (err: any) {
-      console.error(err);
-      setMessage(
-        err.response?.data || "Bir hata oluştu, lütfen tekrar deneyin."
-      );
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const errorMessage = error.response?.data?.errors
+          ? error.response.data.errors.join(", ")
+          : error.response?.data || "Kayıt sırasında bir hata oluştu.";
+        alert(errorMessage);
+      } else {
+        console.error("Kayıt hatası:", error);
+        alert("Kayıt sırasında bir hata oluştu.");
+      }
     }
   };
 
@@ -56,10 +109,6 @@ const Register = () => {
             Hesap Oluştur
           </h1>
 
-          {message && (
-            <p className='text-red-500 text-center mb-4'>{message}</p>
-          )}
-
           <form onSubmit={handleSubmit} className='space-y-4'>
             <div>
               <label className='block text-gray-200 mb-1'>E-mail</label>
@@ -68,9 +117,11 @@ const Register = () => {
                 value={registerEmail}
                 onChange={(e) => setRegisterEmail(e.target.value)}
                 placeholder='E-mail'
-                className='input-base'
-                required
+                className={`input-base ${errors.email ? "border-red-500" : ""}`}
               />
+              {errors.email && (
+                <p className='text-red-500 text-sm mt-1'>{errors.email}</p>
+              )}
             </div>
 
             <div>
@@ -80,9 +131,13 @@ const Register = () => {
                 value={registerUsername}
                 onChange={(e) => setRegisterUsername(e.target.value)}
                 placeholder='Kullanıcı Adı'
-                className='input-base'
-                required
+                className={`input-base ${
+                  errors.username ? "border-red-500" : ""
+                }`}
               />
+              {errors.username && (
+                <p className='text-red-500 text-sm mt-1'>{errors.username}</p>
+              )}
             </div>
 
             <div>
@@ -92,9 +147,13 @@ const Register = () => {
                 value={registerPassword}
                 onChange={(e) => setRegisterPassword(e.target.value)}
                 placeholder='Şifre'
-                className='input-base'
-                required
+                className={`input-base ${
+                  errors.password ? "border-red-500" : ""
+                }`}
               />
+              {errors.password && (
+                <p className='text-red-500 text-sm mt-1'>{errors.password}</p>
+              )}
             </div>
 
             <div>
@@ -104,9 +163,15 @@ const Register = () => {
                 value={registerConfirmPassword}
                 onChange={(e) => setRegisterConfirmPassword(e.target.value)}
                 placeholder='Şifre Tekrar'
-                className='input-base'
-                required
+                className={`input-base ${
+                  errors.confirmPassword ? "border-red-500" : ""
+                }`}
               />
+              {errors.confirmPassword && (
+                <p className='text-red-500 text-sm mt-1'>
+                  {errors.confirmPassword}
+                </p>
+              )}
             </div>
 
             <button type='submit' className='button-base w-full'>
