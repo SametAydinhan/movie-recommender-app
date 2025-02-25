@@ -5,37 +5,40 @@ const localStrategy = require("passport-local").Strategy;
 module.exports = function (passport) {
   passport.use(
     new localStrategy(
-      { usernameField: "usernameOrEmail", passwordField: "password" }, 
+      { usernameField: "usernameOrEmail", passwordField: "password" },
       (usernameOrEmail, password, done) => {
         const query = "SELECT * FROM users WHERE username = ? OR email = ?";
 
-        db.query(
-          query,
-          [usernameOrEmail, usernameOrEmail],
-          async (err, rows) => {
+        db.query(query, [usernameOrEmail, usernameOrEmail], (err, rows) => {
+          if (err) {
+            console.error("DB Error:", err);
+            return done(err);
+          }
+
+          if (!rows || rows.length === 0) {
+            console.log("Kullanıcı bulunamadı");
+            return done(null, false, {
+              message: "Kullanıcı adı veya şifre hatalı.",
+            });
+          }
+
+          const user = rows[0];
+          bcrypt.compare(password, user.password, (err, isMatch) => {
             if (err) {
+              console.error("Bcrypt Error:", err);
               return done(err);
             }
-            if (rows.length === 0) {
+
+            if (isMatch) {
+              return done(null, user);
+            } else {
+              console.log("Şifre eşleşmedi");
               return done(null, false, {
                 message: "Kullanıcı adı veya şifre hatalı.",
               });
             }
-
-            bcrypt.compare(password, rows[0].password, (err, isMatch) => {
-              if (err) {
-                return done(err);
-              }
-              if (isMatch) {
-                return done(null, rows[0]);
-              } else {
-                return done(null, false, {
-                  message: "Kullanıcı adı veya şifre hatalı.",
-                });
-              }
-            });
-          }
-        );
+          });
+        });
       }
     )
   );
