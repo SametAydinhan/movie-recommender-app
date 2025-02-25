@@ -20,13 +20,20 @@ const Login = () => {
       password: "",
     };
 
-    // Email validasyonu
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    // Kullanıcı adı veya Email validasyonu
     if (!loginEmail) {
-      newErrors.email = "Email alanı boş bırakılamaz";
+      newErrors.email = "Kullanıcı adı veya email alanı boş bırakılamaz";
       isValid = false;
-    } else if (!emailRegex.test(loginEmail) && !loginEmail.includes("@")) {
-      newErrors.email = "Geçerli bir email adresi giriniz";
+    } else if (loginEmail.includes("@")) {
+      // Eğer @ işareti varsa email formatını kontrol et
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(loginEmail)) {
+        newErrors.email = "Geçerli bir email adresi giriniz";
+        isValid = false;
+      }
+    } else if (loginEmail.length < 3) {
+      // Kullanıcı adı için minimum uzunluk kontrolü
+      newErrors.email = "Kullanıcı adı en az 3 karakter olmalıdır";
       isValid = false;
     }
 
