@@ -3,6 +3,9 @@ import Link from "next/link";
 import { useState } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
+import { setAuthToken } from "@/utils/auth";
+import { useDispatch } from "react-redux";
+import { setAuth } from "@/store/features/authSlice";
 
 const Register = () => {
   const [registerUsername, setRegisterUsername] = useState("");
@@ -16,6 +19,7 @@ const Register = () => {
     confirmPassword: "",
   });
   const router = useRouter();
+  const dispatch = useDispatch();
 
   const validateForm = () => {
     let isValid = true;
@@ -75,7 +79,7 @@ const Register = () => {
     }
 
     try {
-      const response = await axios.post(
+      const registerResponse = await axios.post(
         "http://localhost:3001/register",
         {
           username: registerUsername,
@@ -85,8 +89,27 @@ const Register = () => {
         { withCredentials: true }
       );
 
-      if (response.status === 200) {
-        router.push("/users/login");
+      if (registerResponse.status === 200) {
+        // Kayıt başarılı olduktan sonra otomatik giriş yap
+        const loginResponse = await axios.post(
+          "http://localhost:3001/login",
+          {
+            usernameOrEmail: registerEmail,
+            password: registerPassword,
+          },
+          {
+            withCredentials: true,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (loginResponse.status === 200) {
+          setAuthToken(loginResponse.data.token);
+          dispatch(setAuth(true));
+          router.push("/");
+        }
       }
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -102,7 +125,7 @@ const Register = () => {
   };
 
   return (
-    <div className='flex justify-center relative min-h-screen bg-black'>
+    <div className='flex justify-center relative h-[calc(100vh-64px)] bg-black'>
       <div className='w-full mx-auto max-w-xl px-6 lg:px-8 absolute py-20'>
         <div className='rounded-2xl shadow-xl bg-gray-800 p-8'>
           <h1 className='text-white text-center font-manrope text-3xl font-bold mb-6'>

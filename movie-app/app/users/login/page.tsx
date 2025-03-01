@@ -3,6 +3,9 @@ import Link from "next/link";
 import { useState } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
+import { setAuthToken } from "@/utils/auth";
+import { useDispatch } from "react-redux";
+import { setAuth } from "@/store/features/authSlice";
 
 const Login = () => {
   const router = useRouter();
@@ -12,6 +15,7 @@ const Login = () => {
     email: "",
     password: "",
   });
+  const dispatch = useDispatch();
 
   const validateForm = () => {
     let isValid = true;
@@ -73,6 +77,8 @@ const Login = () => {
       );
 
       if (response.status === 200) {
+        setAuthToken(response.data.token);
+        dispatch(setAuth(true));
         router.push("/");
       }
     } catch (error) {
@@ -86,8 +92,8 @@ const Login = () => {
   };
 
   return (
-    <div className='flex justify-center relative min-h-screen bg-black'>
-      <div className='w-full mx-auto max-w-xl px-6 lg:px-8 absolute py-20'>
+    <div className='h-[calc(100vh-64px)] bg-black flex items-center justify-center py-10'>
+      <div className='w-full mx-auto max-w-xl px-6 lg:px-8'>
         <div className='rounded-2xl shadow-xl bg-gray-800'>
           <div className='lg:p-14 p-7 mx-auto'>
             <div className='mb-11'>
