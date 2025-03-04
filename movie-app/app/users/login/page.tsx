@@ -71,7 +71,7 @@ const Login = () => {
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault(); // Form submit'in default davranışını engelle
+    e.preventDefault();
 
     if (!validateForm()) {
       return;
@@ -79,7 +79,7 @@ const Login = () => {
 
     try {
       const response = await axios.post(
-        "http://localhost:3001/login",
+        "http://localhost:3001/auth/login",
         {
           usernameOrEmail: loginEmail,
           password: loginPassword,
@@ -99,7 +99,9 @@ const Login = () => {
       }
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        alert(error.response?.data || "Giriş yapılırken bir hata oluştu.");
+        alert(
+          error.response?.data?.errors || "Giriş yapılırken bir hata oluştu."
+        );
       } else {
         console.error("Giriş hatası:", error);
         alert("Giriş yapılırken bir hata oluştu.");
