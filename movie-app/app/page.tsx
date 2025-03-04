@@ -5,17 +5,26 @@ import Image from "next/image";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export default function Home() {
   const { isAuthenticated } = useSelector((state: RootState) => state.auth);
   const router = useRouter();
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated) {
       router.push("/movies"); // veya başka bir dashboard sayfası
     }
   }, [isAuthenticated, router]);
+
+  if (!isClient) {
+    return <div>Loading...</div>; // veya başka bir loading komponenti
+  }
 
   if (isAuthenticated) {
     return null; // Yönlendirme yapılırken boş sayfa göster

@@ -97,7 +97,7 @@ const Register = () => {
 
     try {
       const registerResponse = await axios.post(
-        "http://localhost:3001/register",
+        "http://localhost:3001/auth/register",
         {
           username: registerUsername,
           email: registerEmail,
@@ -109,7 +109,7 @@ const Register = () => {
       if (registerResponse.status === 200) {
         // Kayıt başarılı olduktan sonra otomatik giriş yap
         const loginResponse = await axios.post(
-          "http://localhost:3001/login",
+          "http://localhost:3001/auth/login",
           {
             usernameOrEmail: registerEmail,
             password: registerPassword,
