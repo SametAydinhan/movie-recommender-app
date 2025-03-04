@@ -1,17 +1,19 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import { setAuthToken } from "@/utils/auth";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { setAuth } from "@/store/features/authSlice";
+import { RootState } from "@/store/store";
 
 const Register = () => {
   const [registerUsername, setRegisterUsername] = useState("");
   const [registerEmail, setRegisterEmail] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
   const [registerConfirmPassword, setRegisterConfirmPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
   const [errors, setErrors] = useState({
     username: "",
     email: "",
@@ -20,6 +22,21 @@ const Register = () => {
   });
   const router = useRouter();
   const dispatch = useDispatch();
+  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+
+  useEffect(() => {
+    // Eğer kullanıcı zaten giriş yapmışsa ana sayfaya yönlendir
+    if (isAuthenticated) {
+      router.push("/movies");
+    } else {
+      setIsLoading(false);
+    }
+  }, [isAuthenticated, router]);
+
+  // Eğer yükleme aşamasındaysa veya kullanıcı giriş yapmışsa, hiçbir şey render etme
+  if (isLoading || isAuthenticated) {
+    return null;
+  }
 
   const validateForm = () => {
     let isValid = true;
