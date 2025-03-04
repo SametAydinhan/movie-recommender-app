@@ -1,21 +1,37 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import { setAuthToken } from "@/utils/auth";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { setAuth } from "@/store/features/authSlice";
+import { RootState } from "@/store/store";
 
 const Login = () => {
   const router = useRouter();
+  const dispatch = useDispatch();
+  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+  const [isLoading, setIsLoading] = useState(true);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [errors, setErrors] = useState({
     email: "",
     password: "",
   });
-  const dispatch = useDispatch();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push("/movies");
+    } else {
+      setIsLoading(false);
+    }
+  }, [isAuthenticated, router]);
+
+  // Eğer yükleme aşamasındaysa veya kullanıcı giriş yapmışsa, hiçbir şey render etme
+  if (isLoading || isAuthenticated) {
+    return null;
+  }
 
   const validateForm = () => {
     let isValid = true;
