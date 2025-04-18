@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900" viewBox="0 0 600 900" fill="none">
+  <rect width="600" height="900" fill="#2C3E50"/>
+  <rect x="100" y="150" width="400" height="300" rx="10" fill="#34495E"/>
+  <circle cx="300" cy="380" r="80" fill="#E74C3C"/>
+  <path d="M275 350 L340 380 L275 410" stroke="white" stroke-width="15" stroke-linecap="round"/>
+  <rect x="150" y="500" width="300" height="25" rx="5" fill="#ECF0F1"/>
+  <rect x="200" y="550" width="200" height="15" rx="3" fill="#ECF0F1"/>
+  <line x1="175" y1="600" x2="425" y2="600" stroke="#7F8C8D" stroke-width="4" stroke-dasharray="10 5"/>
+  <line x1="175" y1="630" x2="425" y2="630" stroke="#7F8C8D" stroke-width="4" stroke-dasharray="10 5"/>
+  <line x1="175" y1="660" x2="425" y2="660" stroke="#7F8C8D" stroke-width="4" stroke-dasharray="10 5"/>
+  <text x="300" y="730" font-family="Arial" font-size="24" fill="white" text-anchor="middle">Resim Yüklenemedi</text>
+</svg> 

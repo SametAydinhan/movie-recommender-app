@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900" viewBox="0 0 600 900" fill="none">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1A2980;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#26D0CE;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="600" height="900" fill="url(#grad1)"/>
+  <rect x="150" y="250" width="300" height="180" rx="15" fill="#FFFFFF" fill-opacity="0.2"/>
+  <path d="M270 310 L240 340 L270 370" stroke="white" stroke-width="10" stroke-linecap="round"/>
+  <path d="M330 310 L360 340 L330 370" stroke="white" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="300" cy="340" r="20" fill="white"/>
+  <rect x="200" y="460" width="200" height="20" rx="10" fill="white" fill-opacity="0.7"/>
+  <rect x="175" y="500" width="250" height="15" rx="7" fill="white" fill-opacity="0.5"/>
+  <rect x="225" y="530" width="150" height="15" rx="7" fill="white" fill-opacity="0.5"/>
+  <text x="300" y="600" font-family="Arial" font-size="24" fill="white" text-anchor="middle">Afiş Gösterilemiyor</text>
+</svg> 

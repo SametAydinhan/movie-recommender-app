@@ -78,6 +78,11 @@ const Login = () => {
     }
 
     try {
+      console.log("Giriş isteği gönderiliyor...", {
+        url: "http://localhost:3001/auth/login",
+        data: { usernameOrEmail: loginEmail, password: "[GIZLI]" },
+      });
+
       const response = await axios.post(
         "http://localhost:3001/auth/login",
         {
@@ -92,19 +97,50 @@ const Login = () => {
         }
       );
 
-      if (response.status === 200) {
+      console.log("Giriş yanıtı:", response.data);
+
+      if (response.status === 200 && response.data.token) {
+        console.log(
+          "Token alındı:",
+          response.data.token.substring(0, 15) + "..."
+        );
         setAuthToken(response.data.token);
         dispatch(setAuth(true));
-        router.push("/");
+        router.push("/movies");
+      } else {
+        console.error("Geçersiz yanıt:", response);
+        alert("Giriş yapılırken bir hata oluştu: Geçersiz yanıt");
       }
     } catch (error) {
+      console.error("Giriş hatası detaylı:", error);
+
       if (axios.isAxiosError(error)) {
+        console.error("Sunucu yanıt detayları:", {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          config: {
+            url: error.config?.url,
+            method: error.config?.method,
+            headers: error.config?.headers,
+          },
+        });
+
+        const errorMessage = error.response?.data?.errors
+          ? Array.isArray(error.response.data.errors)
+            ? error.response.data.errors.join(", ")
+            : error.response.data.errors
+          : "Giriş yapılırken bir hata oluştu.";
+
         alert(
-          error.response?.data?.errors || "Giriş yapılırken bir hata oluştu."
+          `Giriş hatası: ${errorMessage} (${
+            error.response?.status || "Bilinmeyen hata"
+          })`
         );
       } else {
-        console.error("Giriş hatası:", error);
-        alert("Giriş yapılırken bir hata oluştu.");
+        alert(
+          "Giriş yapılırken bir hata oluştu. Lütfen daha sonra tekrar deneyin."
+        );
       }
     }
   };

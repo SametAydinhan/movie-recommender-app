@@ -8,22 +8,36 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export default function Home() {
-  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+  const { isAuthenticated, isInitialized } = useSelector(
+    (state: RootState) => state.auth
+  );
   const router = useRouter();
-  const [isClient, setIsClient] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    setIsClient(true);
-  }, []);
+    // Sayfa tamamen yüklendiğinde ve auth durumu hazır olduğunda
+    if (isInitialized) {
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+      }, 300);
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      router.push("/movies"); // veya başka bir dashboard sayfası
+      return () => clearTimeout(timer);
     }
-  }, [isAuthenticated, router]);
+  }, [isInitialized]);
 
-  if (!isClient) {
-    return <div>Loading...</div>; // veya başka bir loading komponenti
+  useEffect(() => {
+    if (isAuthenticated && !isLoading && isInitialized) {
+      router.push("/movies");
+    }
+  }, [isAuthenticated, router, isLoading, isInitialized]);
+
+  // İlk yükleme sırasında veya auth durumu henüz hazır değilse bir yükleme göstergesi göster
+  if (isLoading || !isInitialized) {
+    return (
+      <div className='h-[calc(100vh-64px)] flex items-center justify-center bg-black'>
+        <div className='animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500'></div>
+      </div>
+    );
   }
 
   if (isAuthenticated) {
@@ -31,7 +45,10 @@ export default function Home() {
   }
 
   return (
-    <div className='h-[calc(100vh-64px)] bg-black relative flex flex-col items-center justify-center'>
+    <div
+      className='h-[calc(100vh-64px)] bg-black relative flex flex-col items-center justify-center'
+      suppressHydrationWarning
+    >
       {/* Sağ alt köşedeki resim */}
       <div className='absolute bottom-0 right-0 w-[400px] h-[400px] hidden xl:block'>
         <Image

@@ -96,6 +96,15 @@ const Register = () => {
     }
 
     try {
+      console.log("Kayıt isteği gönderiliyor...", {
+        url: "http://localhost:3001/auth/register",
+        data: {
+          username: registerUsername,
+          email: registerEmail,
+          password: "[GIZLI]",
+        },
+      });
+
       const registerResponse = await axios.post(
         "http://localhost:3001/auth/register",
         {
@@ -103,11 +112,20 @@ const Register = () => {
           email: registerEmail,
           password: registerPassword,
         },
-        { withCredentials: true }
+        {
+          withCredentials: true,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
       );
+
+      console.log("Kayıt yanıtı:", registerResponse.data);
 
       if (registerResponse.status === 200) {
         // Kayıt başarılı olduktan sonra otomatik giriş yap
+        console.log("Kayıt başarılı, otomatik giriş yapılıyor...");
+
         const loginResponse = await axios.post(
           "http://localhost:3001/auth/login",
           {
@@ -122,21 +140,44 @@ const Register = () => {
           }
         );
 
+        console.log("Otomatik giriş yanıtı:", loginResponse.data);
+
         if (loginResponse.status === 200) {
           setAuthToken(loginResponse.data.token);
           dispatch(setAuth(true));
-          router.push("/");
+          router.push("/movies");
         }
       }
     } catch (error) {
+      console.error("Kayıt hatası detaylı:", error);
+
       if (axios.isAxiosError(error)) {
+        console.error("Sunucu yanıt detayları:", {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          config: {
+            url: error.config?.url,
+            method: error.config?.method,
+          },
+        });
+
         const errorMessage = error.response?.data?.errors
-          ? error.response.data.errors.join(", ")
-          : error.response?.data || "Kayıt sırasında bir hata oluştu.";
-        alert(errorMessage);
+          ? Array.isArray(error.response.data.errors)
+            ? error.response.data.errors.join(", ")
+            : error.response.data.errors
+          : error.response?.data?.message || "Kayıt sırasında bir hata oluştu.";
+
+        alert(
+          `Kayıt hatası: ${errorMessage} (${
+            error.response?.status || "Bilinmeyen hata"
+          })`
+        );
       } else {
-        console.error("Kayıt hatası:", error);
-        alert("Kayıt sırasında bir hata oluştu.");
+        console.error("Bilinmeyen kayıt hatası:", error);
+        alert(
+          "Kayıt sırasında bir hata oluştu. Lütfen daha sonra tekrar deneyin."
+        );
       }
     }
   };
