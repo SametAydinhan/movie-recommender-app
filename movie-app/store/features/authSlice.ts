@@ -3,10 +3,16 @@ import { getAuthToken } from "@/utils/auth";
 
 interface AuthState {
   isAuthenticated: boolean;
+  isInitialized: boolean;
+  userName: string | null;
 }
 
+// SSR sırasında localStorage erişimi olmadığından başlangıçta false değerini kullan
+// Client tarafında kullanıcı kontrolü ayrıca yapılacak
 const initialState: AuthState = {
-  isAuthenticated: typeof window !== "undefined" ? !!getAuthToken() : false,
+  isAuthenticated: false,
+  isInitialized: false,
+  userName: null,
 };
 
 const authSlice = createSlice({
@@ -18,12 +24,30 @@ const authSlice = createSlice({
     },
     logout: (state) => {
       state.isAuthenticated = false;
+      state.userName = null;
     },
     checkAuth: (state) => {
-      state.isAuthenticated = !!getAuthToken();
+      if (typeof window !== "undefined") {
+        state.isAuthenticated = !!getAuthToken();
+      } else {
+        state.isAuthenticated = false;
+      }
+      state.isInitialized = true;
+    },
+    checkUserAuth: (state) => {
+      if (typeof window !== "undefined") {
+        state.isAuthenticated = !!getAuthToken();
+      } else {
+        state.isAuthenticated = false;
+      }
+      state.isInitialized = true;
+    },
+    setUserName: (state, action: PayloadAction<string>) => {
+      state.userName = action.payload;
     },
   },
 });
 
-export const { setAuth, logout, checkAuth } = authSlice.actions;
+export const { setAuth, logout, checkAuth, checkUserAuth, setUserName } =
+  authSlice.actions;
 export default authSlice.reducer;
