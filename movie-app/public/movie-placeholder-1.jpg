@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900" viewBox="0 0 600 900" fill="none">
+  <rect width="600" height="900" fill="#1A1A2E"/>
+  <rect x="100" y="200" width="400" height="240" rx="20" fill="#0F3460"/>
+  <circle cx="300" cy="450" r="120" fill="#E94560"/>
+  <path d="M320 350 L390 450 L320 550" stroke="#16213E" stroke-width="30" stroke-linecap="round"/>
+  <path d="M280 350 L210 450 L280 550" stroke="#16213E" stroke-width="30" stroke-linecap="round"/>
+  <rect x="150" y="600" width="300" height="20" rx="10" fill="#E94560"/>
+  <rect x="180" y="640" width="240" height="15" rx="7.5" fill="#0F3460"/>
+  <rect x="220" y="675" width="160" height="15" rx="7.5" fill="#0F3460"/>
+  <text x="300" y="730" font-family="Arial" font-size="28" fill="#FFFFFF" text-anchor="middle">Film Bilgisi Bulunamadı</text>
+</svg> 

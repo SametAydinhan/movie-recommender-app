@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900" viewBox="0 0 600 900" fill="none">
+  <rect width="600" height="900" fill="#3F3F3F"/>
+  <rect x="125" y="200" width="350" height="500" rx="15" fill="#292929"/>
+  <circle cx="300" cy="350" r="100" fill="#555555"/>
+  <path d="M260 300 L320 350 L260 400" stroke="#7C7C7C" stroke-width="12" stroke-linecap="round"/>
+  <rect x="170" y="500" width="260" height="20" rx="5" fill="#555555"/>
+  <rect x="170" y="540" width="210" height="15" rx="3" fill="#555555"/>
+  <rect x="170" y="570" width="160" height="15" rx="3" fill="#555555"/>
+  <rect x="170" y="600" width="240" height="15" rx="3" fill="#555555"/>
+  <rect x="175" y="650" width="250" height="30" rx="5" fill="#5C5C5C"/>
+  <rect x="175" y="690" width="120" height="30" rx="5" fill="#5C5C5C"/>
+  <text x="300" y="750" font-family="Arial" font-size="22" fill="#CCCCCC" text-anchor="middle">Film Afişi Mevcut Değil</text>
+</svg> 
