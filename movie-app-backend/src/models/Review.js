@@ -1,7 +1,5 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
-const User = require("./User");
-const Movie = require("./Movie");
 
 const Review = sequelize.define(
   "Review",
@@ -21,14 +19,9 @@ const Review = sequelize.define(
     },
   },
   {
+    tableName: "reviews",
     timestamps: true,
   }
 );
-
-// İlişkileri tanımla
-User.hasMany(Review);
-Movie.hasMany(Review);
-Review.belongsTo(User);
-Review.belongsTo(Movie);
 
 module.exports = Review;
