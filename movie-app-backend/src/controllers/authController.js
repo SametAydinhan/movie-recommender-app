@@ -83,8 +83,8 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Şifreyi kontrol et (User modelindeki validatePassword metodu kullanılıyor)
-    const isValidPassword = await user.validatePassword(password);
+    // Şifreyi kontrol et
+    const isValidPassword = await bcrypt.compare(password, user.password);
 
     if (!isValidPassword) {
       return res.status(401).json({
