@@ -1,4 +1,5 @@
 {
+  "$schema": "./package.json",
   "name": "movie-app-backend",
   "version": "1.0.0",
   "description": "Movie App Backend with Sequelize",
