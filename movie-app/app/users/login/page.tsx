@@ -3,9 +3,9 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
-import { setAuthToken } from "@/utils/auth";
+import { setAuthToken, setUserNameInStorage } from "@/utils/auth";
 import { useDispatch, useSelector } from "react-redux";
-import { setAuth } from "@/store/features/authSlice";
+import { setAuth, setUserName } from "@/store/features/authSlice";
 import { RootState } from "@/store/store";
 
 const Login = () => {
@@ -106,6 +106,12 @@ const Login = () => {
         );
         setAuthToken(response.data.token);
         dispatch(setAuth(true));
+        // Kullanıcı adını Redux state'e kaydet
+        if (response.data.user && response.data.user.username) {
+          dispatch(setUserName(response.data.user.username));
+          // Kullanıcı adını localStorage'a kaydet
+          setUserNameInStorage(response.data.user.username);
+        }
         router.push("/movies");
       } else {
         console.error("Geçersiz yanıt:", response);

@@ -58,9 +58,33 @@ export const removeAuthToken = () => {
 
   try {
     localStorage.removeItem("authToken");
+    localStorage.removeItem("userName");
     return true;
   } catch (error) {
     console.error("Token silinirken hata:", error);
     return false;
+  }
+};
+
+export const setUserNameInStorage = (userName: string) => {
+  if (!isLocalStorageAvailable()) return false;
+
+  try {
+    localStorage.setItem("userName", userName);
+    return true;
+  } catch (error) {
+    console.error("Kullanıcı adı kaydedilirken hata:", error);
+    return false;
+  }
+};
+
+export const getUserNameFromStorage = () => {
+  if (!isLocalStorageAvailable()) return null;
+
+  try {
+    return localStorage.getItem("userName");
+  } catch (error) {
+    console.error("Kullanıcı adı alınırken hata:", error);
+    return null;
   }
 };

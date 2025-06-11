@@ -7,5 +7,5 @@ module.exports = {
   User,
   MoviesMetaData,
   UserMovie,
-  Links,
+  Links
 };

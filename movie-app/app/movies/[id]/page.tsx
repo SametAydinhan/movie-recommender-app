@@ -2,7 +2,19 @@
 import React, { useEffect, useState, cache } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { FaStar, FaStarHalf, FaRegStar, FaArrowLeft } from "react-icons/fa";
+import {
+  FaStar,
+  FaStarHalf,
+  FaRegStar,
+  FaArrowLeft,
+  FaCheckCircle,
+  FaPlusCircle,
+} from "react-icons/fa";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState, AppDispatch } from "@/store/store";
+import { addToWatched, removeFromWatched } from "@/store/features/moviesSlice";
+import { toggleWatchedMovie } from "@/lib/utils/api-movies";
+import { getAuthToken } from "@/utils/auth";
 
 interface Movie {
   id: number;
@@ -162,8 +174,8 @@ export default function MovieDetail({ params }: { params: { id: string } }) {
   // Film resimleri için durum değişkenleri
   const [posterLoading, setPosterLoading] = useState(true);
   const [backdropLoading, setBackdropLoading] = useState(true);
-  const [posterUrl, setPosterUrl] = useState("/no-image.jpg");
-  const [backdropUrl, setBackdropUrl] = useState("/no-image.jpg");
+  const [posterUrl, setPosterUrl] = useState("/No-Poster.png");
+  const [backdropUrl, setBackdropUrl] = useState("/No-Poster.png");
 
   useEffect(() => {
     // Film verisi geldiğinde resimleri hazırla
@@ -174,7 +186,6 @@ export default function MovieDetail({ params }: { params: { id: string } }) {
 
       try {
         setPosterLoading(true);
-        setBackdropLoading(true);
 
         // Poster için
         if (
@@ -187,39 +198,20 @@ export default function MovieDetail({ params }: { params: { id: string } }) {
             : `/${movie.poster_path}`;
 
           // Ana sayfada kullanılan URL formatını kullan
-          const tmdbUrl = `https://image.tmdb.org/t/p/original/${posterPath}`;
+          const tmdbUrl = `https://image.tmdb.org/t/p/original${posterPath}`;
 
           setPosterUrl(tmdbUrl);
           setPosterLoading(false);
         } else {
-          // Varsayılan resim kullan
-          const defaultImageIndex = movie.id % defaultImages.length;
-          setPosterUrl(defaultImages[defaultImageIndex]);
+          // Varsayılan No-Poster resmi kullan
+          setPosterUrl("/No-Poster.png");
           setPosterLoading(false);
-        }
-
-        // Backdrop için
-        if (
-          movie.backdrop_path &&
-          movie.backdrop_path !== "null" &&
-          movie.backdrop_path !== ""
-        ) {
-          const backdropPath = movie.backdrop_path.startsWith("/")
-            ? movie.backdrop_path
-            : `/${movie.backdrop_path}`;
-
-          // Ana sayfada kullanılan URL formatını kullan
-          const tmdbUrl = `https://image.tmdb.org/t/p/original/${backdropPath}`;
-
-          setBackdropUrl(tmdbUrl);
-          setBackdropLoading(false);
-        } else {
-          // Varsayılan arkaplan resim
-          setBackdropUrl("/no-image.jpg");
-          setBackdropLoading(false);
         }
       } catch (error) {
         console.error("Film resimleri hazırlanırken hata:", error);
+        // Hata durumunda varsayılan resimler kullan
+        setPosterUrl("/No-Poster.png");
+        setPosterLoading(false);
       }
     };
 
@@ -397,6 +389,53 @@ export default function MovieDetail({ params }: { params: { id: string } }) {
     ? parseJsonString(movie.production_companies, "companies")
     : [];
 
+  const dispatch = useDispatch<AppDispatch>();
+  const watchedMovies = useSelector(
+    (state: RootState) => state.movies.watchedMovies
+  );
+  const isWatched = watchedMovies.includes(Number(movieId));
+
+  const handleToggleWatched = async () => {
+    if (!movie) return;
+
+    try {
+      // Kullanıcı giriş yapıp yapmadığını kontrol et
+      const token = getAuthToken();
+      if (!token) {
+        alert("Bu işlemi yapabilmek için giriş yapmalısınız.");
+        return;
+      }
+
+      // İzlendi durumunu değiştir
+      if (isWatched) {
+        // Redux state'ini güncelle - listeden çıkar
+        dispatch(removeFromWatched(movie.id));
+      } else {
+        // Redux state'ini güncelle - listeye ekle
+        dispatch(addToWatched(movie.id));
+      }
+
+      // API isteğini yap
+      const result = await toggleWatchedMovie(movie.id, isWatched);
+
+      if (!result.success) {
+        // API işlemi başarısız olursa, Redux değişikliklerini geri al
+        if (isWatched) {
+          dispatch(addToWatched(movie.id));
+        } else {
+          dispatch(removeFromWatched(movie.id));
+        }
+        throw new Error(result.message);
+      }
+
+      // Başarı mesajını göster
+      alert(result.message);
+    } catch (error: any) {
+      console.error("Film listesini güncelleme hatası:", error);
+      alert(error.message || "İşlem sırasında bir hata oluştu");
+    }
+  };
+
   if (loading) {
     return (
       <div className='flex justify-center items-center min-h-screen'>
@@ -439,27 +478,8 @@ export default function MovieDetail({ params }: { params: { id: string } }) {
   }
 
   return (
-    <div className='min-h-screen pb-16'>
-      {/* Arka plan resmi */}
-      <div className='absolute top-0 left-0 w-full h-[500px] z-0 opacity-30'>
-        {backdropLoading ? (
-          <div className='absolute inset-0 bg-gray-800'></div>
-        ) : (
-          <div className='w-full h-full'>
-            <Image
-              src={backdropUrl}
-              alt={movie.title}
-              fill
-              style={{ objectFit: "cover" }}
-              priority
-              unoptimized
-            />
-          </div>
-        )}
-        <div className='absolute inset-0 bg-gradient-to-t from-gray-900 to-transparent' />
-      </div>
-
-      <div className='max-w-6xl mx-auto px-4 pt-16 relative z-10'>
+    <div className='min-h-screen pb-16 pt-8 bg-gray-900'>
+      <div className='max-w-6xl mx-auto px-4 relative z-10'>
         <Link
           href='/movies'
           className='inline-flex items-center gap-2 text-white bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-full mb-8 transition-colors'
@@ -526,6 +546,26 @@ export default function MovieDetail({ params }: { params: { id: string } }) {
                   {movie.status}
                 </div>
               )}
+
+              {/* İzlediklerime ekle butonu */}
+              <button
+                onClick={handleToggleWatched}
+                className={`px-3 py-1 rounded text-white text-sm flex items-center gap-1 transition-colors ${
+                  isWatched
+                    ? "bg-green-600 hover:bg-green-700"
+                    : "bg-purple-600 hover:bg-purple-700"
+                }`}
+              >
+                {isWatched ? (
+                  <>
+                    <FaCheckCircle className='mr-1' /> İzlediğim Film
+                  </>
+                ) : (
+                  <>
+                    <FaPlusCircle className='mr-1' /> İzlediklerime Ekle
+                  </>
+                )}
+              </button>
             </div>
 
             {genres.length > 0 && (

@@ -3,9 +3,9 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
-import { setAuthToken } from "@/utils/auth";
+import { setAuthToken, setUserNameInStorage } from "@/utils/auth";
 import { useDispatch, useSelector } from "react-redux";
-import { setAuth } from "@/store/features/authSlice";
+import { setAuth, setUserName } from "@/store/features/authSlice";
 import { RootState } from "@/store/store";
 
 const Register = () => {
@@ -145,6 +145,12 @@ const Register = () => {
         if (loginResponse.status === 200) {
           setAuthToken(loginResponse.data.token);
           dispatch(setAuth(true));
+          // Kullanıcı adını Redux state'e kaydet
+          if (loginResponse.data.user && loginResponse.data.user.username) {
+            dispatch(setUserName(loginResponse.data.user.username));
+            // Kullanıcı adını localStorage'a kaydet
+            setUserNameInStorage(loginResponse.data.user.username);
+          }
           router.push("/movies");
         }
       }

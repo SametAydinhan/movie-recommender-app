@@ -5,26 +5,19 @@ const { Op } = require("sequelize");
 // Kullanıcının izlediği filmlerin listesini getir
 exports.getWatchedMovies = async (req, res) => {
   try {
-    // Kullanıcı ID'si - kimlik doğrulamasından gelecek
-    // Şu an için demo amaçlı 1 kullanıyoruz
-    const userId = req.userId || 1; // Gerçek uygulamada JWT'den alınacak
+    const userId = req.userId || 1;
 
-    // Eğer movieIds query parametresi varsa, localStorage verileri kullanılıyor demektir
+    // Eğer movieIds query parametresi varsa, localStorage verileri kullanılıyor
     if (req.query.movieIds) {
       const movieIds = JSON.parse(req.query.movieIds);
 
       if (!movieIds || movieIds.length === 0) {
-        return res.json({
-          watchedMovies: [],
-          count: 0,
-        });
+        return res.json({ watchedMovies: [], count: 0 });
       }
 
       // ID'lere göre izlenen filmlerin detaylarını getir
       const watchedMovies = await MoviesMetaData.findAll({
-        where: {
-          id: movieIds,
-        },
+        where: { id: movieIds },
         attributes: [
           "id",
           "title",
@@ -37,17 +30,13 @@ exports.getWatchedMovies = async (req, res) => {
         ],
       });
 
-      console.log(
-        `LocalStorage'dan ${watchedMovies.length} izlenen film getirildi`
-      );
-
       return res.json({
         watchedMovies,
         count: watchedMovies.length,
       });
     }
 
-    // movieIds yoksa normal veritabanı sorgusu yap
+    // Normal veritabanı sorgusu
     const userMovies = await UserMovie.findAll({
       where: { UserId: userId },
       include: [
@@ -67,13 +56,8 @@ exports.getWatchedMovies = async (req, res) => {
       ],
     });
 
-    // Film verilerini düzenleyerek client'a göndermek için hazırla
     const watchedMovies = userMovies.map(
       (userMovie) => userMovie.MoviesMetaData
-    );
-
-    console.log(
-      `${watchedMovies.length} izlenen film getirildi - Kullanıcı: ${userId}`
     );
 
     res.json({
@@ -91,10 +75,7 @@ exports.getWatchedMovies = async (req, res) => {
 // My Movies sayfası için kullanıcının izlediği filmleri getir
 exports.getMyMovies = async (req, res) => {
   try {
-    // Giriş yapmış kullanıcının ID'sini al
     const userId = req.userId;
-
-    console.log(`getMyMovies çağrıldı - Kullanıcı ID: ${userId}`);
 
     if (!userId) {
       return res.status(401).json({
@@ -103,12 +84,9 @@ exports.getMyMovies = async (req, res) => {
       });
     }
 
-    console.log(`Kullanıcı ${userId} için izlenen filmler alınıyor...`);
-
     // Kullanıcı var mı kontrol et
     const user = await User.findByPk(userId);
     if (!user) {
-      console.log(`Kullanıcı ${userId} bulunamadı!`);
       return res.status(404).json({
         success: false,
         message: "Kullanıcı bulunamadı.",
@@ -120,10 +98,7 @@ exports.getMyMovies = async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
     const offset = (page - 1) * limit;
 
-    console.log(`Sayfalama: sayfa=${page}, limit=${limit}, offset=${offset}`);
-
-    // Doğrudan SQL sorgusu kullanarak UserMovie ve MoviesMetaData tabloları birleştiriliyor
-    // NOT: Tablo adları ve sütun adları veritabanı şemanıza göre değişebilir
+    // SQL sorguları
     const query = `
       SELECT 
         mm.id, mm.title, mm.poster_path, mm.release_date, mm.vote_average, 
@@ -136,7 +111,6 @@ exports.getMyMovies = async (req, res) => {
       LIMIT ? OFFSET ?
     `;
 
-    // Toplam kayıt sayısını almak için ikinci bir sorgu
     const countQuery = `
       SELECT COUNT(*) as total
       FROM "UserMovies"
@@ -144,7 +118,7 @@ exports.getMyMovies = async (req, res) => {
     `;
 
     try {
-      // Filmleri getir
+      // Filmleri ve toplam sayıyı al
       const [movies, countResult] = await Promise.all([
         sequelize.query(query, {
           replacements: [userId, limit, offset],
@@ -157,9 +131,8 @@ exports.getMyMovies = async (req, res) => {
       ]);
 
       const total = countResult[0].total;
-      console.log(`Bulunan film sayısı: ${movies.length}, toplam: ${total}`);
 
-      // Film türlerini düzgün formata dönüştür
+      // Film verilerini düzenle
       const formattedMovies = movies.map((movie) => {
         let genres = [];
         try {
@@ -169,10 +142,6 @@ exports.getMyMovies = async (req, res) => {
             genres = parsedGenres.map((g) => g.name);
           }
         } catch (error) {
-          console.warn(
-            `Film ID ${movie.id} için tür analizi yapılamadı:`,
-            error.message
-          );
           genres = [];
         }
 
@@ -226,29 +195,15 @@ exports.getMyMovies = async (req, res) => {
 exports.addWatchedMovie = async (req, res) => {
   try {
     const { movieId } = req.body;
+    const userId = req.userId;
 
-    // İstek detaylarını logla
-    console.log("İzlenen film ekleme isteği alındı:", {
-      body: req.body,
-      userId: req.userId,
-      headers: req.headers.authorization ? "Bearer token mevcut" : "Token yok",
-    });
-
-    // Kullanıcı ID'si doğrulama
-    if (!req.userId) {
+    // Giriş kontrolü
+    if (!userId) {
       return res.status(401).json({
         success: false,
         message: "Bu işlem için giriş yapmalısınız.",
       });
     }
-
-    const userId = req.userId;
-    console.log(
-      "İzlenen film ekleniyor - Film ID:",
-      movieId,
-      "Kullanıcı ID:",
-      userId
-    );
 
     // Film ID'si geçerli mi kontrol et
     if (!movieId) {
@@ -258,8 +213,12 @@ exports.addWatchedMovie = async (req, res) => {
       });
     }
 
-    // Film veritabanında var mı kontrol et
-    const movie = await MoviesMetaData.findByPk(movieId);
+    // Film ve kullanıcı varlığını kontrol et
+    const [movie, user] = await Promise.all([
+      MoviesMetaData.findByPk(movieId),
+      User.findByPk(userId),
+    ]);
+
     if (!movie) {
       return res.status(404).json({
         success: false,
@@ -267,8 +226,6 @@ exports.addWatchedMovie = async (req, res) => {
       });
     }
 
-    // Kullanıcı veritabanında var mı kontrol et
-    const user = await User.findByPk(userId);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -285,7 +242,7 @@ exports.addWatchedMovie = async (req, res) => {
     });
 
     if (existingEntry) {
-      // Eğer film zaten listede varsa ve status değeri "watched" ise hata döndür
+      // Eğer film zaten listede varsa ve "watched" ise hata döndür
       if (existingEntry.status === "watched") {
         return res.status(409).json({
           success: false,
@@ -293,7 +250,7 @@ exports.addWatchedMovie = async (req, res) => {
         });
       }
 
-      // Eğer status değeri "watchlist" ise, watched'a güncelle
+      // Eğer "watchlist" ise, "watched"a güncelle
       existingEntry.status = "watched";
       await existingEntry.save();
 
@@ -310,52 +267,30 @@ exports.addWatchedMovie = async (req, res) => {
       });
     }
 
-    // Modeli kontrol et
-    console.log("UserMovie şeması:", Object.keys(UserMovie.rawAttributes));
-
     // Yeni izlenen film kaydı oluştur
-    try {
-      const newUserMovie = await UserMovie.create({
-        UserId: userId,
-        MoviesMetaDataId: movieId,
-        status: "watched", // izlendiğini belirt
-      });
+    const newUserMovie = await UserMovie.create({
+      UserId: userId,
+      MoviesMetaDataId: movieId,
+      status: "watched",
+    });
 
-      console.log("UserMovie kaydı oluşturuldu:", newUserMovie.id);
-      console.log(
-        `Film izlendi olarak işaretlendi - Film: ${movieId}, Kullanıcı: ${userId}`
-      );
-
-      // Başarılı yanıt
-      return res.status(201).json({
-        success: true,
-        message: `Film #${movieId} izlendi olarak işaretlendi.`,
-        watchedMovie: {
-          id: newUserMovie.id,
-          movieId: movieId,
-          userId: userId,
-          status: "watched",
-          createdAt: newUserMovie.createdAt,
-        },
-      });
-    } catch (createError) {
-      console.error("Kayıt oluşturma hatası:", createError);
-      return res.status(500).json({
-        success: false,
-        message: "Film izlendi olarak işaretlenirken veritabanı hatası oluştu.",
-        error: createError.message,
-        details: createError.errors
-          ? createError.errors.map((e) => e.message)
-          : null,
-      });
-    }
+    return res.status(201).json({
+      success: true,
+      message: `Film #${movieId} izlendi olarak işaretlendi.`,
+      watchedMovie: {
+        id: newUserMovie.id,
+        movieId: movieId,
+        userId: userId,
+        status: "watched",
+        createdAt: newUserMovie.createdAt,
+      },
+    });
   } catch (error) {
     console.error("Film izlendi olarak işaretlenirken hata:", error);
     return res.status(500).json({
       success: false,
       message: "Film izlendi olarak işaretlenirken bir hata oluştu.",
       error: error.message,
-      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
   }
 };
@@ -364,16 +299,15 @@ exports.addWatchedMovie = async (req, res) => {
 exports.removeWatchedMovie = async (req, res) => {
   try {
     const movieId = parseInt(req.params.movieId);
+    const userId = req.userId;
 
-    // Kullanıcı ID'si doğrulama
-    if (!req.userId) {
+    // Giriş kontrolü
+    if (!userId) {
       return res.status(401).json({
         success: false,
         message: "Bu işlem için giriş yapmalısınız.",
       });
     }
-
-    const userId = req.userId;
 
     // Film ID'si geçerli mi kontrol et
     if (isNaN(movieId)) {
@@ -402,10 +336,6 @@ exports.removeWatchedMovie = async (req, res) => {
     // İzlenen filmi listeden kaldır
     await watchedMovie.destroy();
 
-    console.log(
-      `Film izlenmedi olarak işaretlendi - Film: ${movieId}, Kullanıcı: ${userId}`
-    );
-
     // Başarılı yanıt
     res.json({
       success: true,
@@ -421,34 +351,26 @@ exports.removeWatchedMovie = async (req, res) => {
   }
 };
 
-// movie-app-backend/src/routes/movieRoutes.js dosyasındaki yeni isimlerle uyumlu olarak
-// aşağıdaki alias'ları ekleyelim
+// Alias'lar
 exports.addToWatched = exports.addWatchedMovie;
 exports.removeFromWatched = exports.removeWatchedMovie;
 
-// Belirli bir kullanıcının izlediği filmleri getiren endpoint
+// Kullanıcının izlediği filmleri getir (userId parametresi ile)
 exports.getUserWatchedMovies = async (req, res) => {
   try {
-    // URL'den kullanıcı ID'sini al
-    const userId = parseInt(req.params.userId);
+    // Kullanıcı kimliği kontrol
+    const userIdFromParam = parseInt(req.params.userId);
+    const userIdFromToken = req.userId;
 
-    // Şu anki giriş yapmış kullanıcının ID'si
-    const loggedInUserId = req.userId;
-
-    console.log("Kullanıcı filmleri isteği:", {
-      requestedUserId: userId,
-      loggedInUserId: loggedInUserId,
-      isAuthorized: userId === loggedInUserId,
-    });
-
-    // Kullanıcı kendi verilerine erişebilir veya admin ise herkesin verilerine erişebilir
-    // İleride admin kontrolü de eklenebilir
-    if (userId !== loggedInUserId) {
+    // Kendi hesabına mı erişiyor kontrol et
+    if (userIdFromParam !== userIdFromToken) {
       return res.status(403).json({
         success: false,
-        message: "Başka bir kullanıcının verilerine erişim yetkiniz yok.",
+        message: "Yalnızca kendi izleme listenize erişebilirsiniz.",
       });
     }
+
+    const userId = userIdFromToken;
 
     // Kullanıcı var mı kontrol et
     const user = await User.findByPk(userId);
@@ -459,244 +381,108 @@ exports.getUserWatchedMovies = async (req, res) => {
       });
     }
 
-    // Sayfalama için parametreler
+    // Sayfalama parametreleri
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
+    const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
 
-    // Filtreleme için parametreler - isteğe bağlı
-    const title = req.query.title || "";
-    const genre = req.query.genre || "";
-    const year = req.query.year || "";
+    // SQL sorgularını hazırla
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM UserMovies
+      WHERE UserId = ? AND status = 'watched'
+    `;
 
-    // ORM kullanmak yerine doğrudan SQL sorgusu kullan
-    try {
-      // Film sayısını almak için sorgu
-      const countQuery = `
-        SELECT COUNT(DISTINCT um.id) as total
-        FROM "UserMovies" um 
-        JOIN "movies_metadata" mm ON um."MoviesMetaDataId" = mm.id
-        WHERE um."UserId" = ? AND um.status = 'watched'
-      `;
+    const moviesQuery = `
+      SELECT 
+        mm.id, mm.title, mm.poster_path, mm.release_date, mm.vote_average, 
+        mm.genres, mm.overview, mm.runtime, mm.adult, mm.original_language,
+        um.updatedAt as watched_at
+      FROM UserMovies um
+      INNER JOIN movies_metadata mm ON um.MoviesMetaDataId = mm.id
+      WHERE um.UserId = ? AND um.status = 'watched'
+      ORDER BY um.updatedAt DESC
+      LIMIT ? OFFSET ?
+    `;
 
-      // Filmleri getir - JOIN kullanarak
-      const moviesQuery = `
-        SELECT 
-          mm.id, mm.title, mm.poster_path, mm.release_date, mm.vote_average, 
-          mm.genres, mm.overview, mm.runtime, um."updatedAt" as watched_at
-        FROM "UserMovies" um
-        JOIN "movies_metadata" mm ON um."MoviesMetaDataId" = mm.id
-        WHERE um."UserId" = ? AND um.status = 'watched'
-        ORDER BY um."updatedAt" DESC
-        LIMIT ? OFFSET ?
-      `;
+    // Önce toplam film sayısını al
+    const [countResults] = await sequelize.query(countQuery, {
+      replacements: [userId],
+      type: sequelize.QueryTypes.SELECT,
+    });
 
-      // Şema bilgisini alabiliriz
-      console.log(
-        "Veritabanı tabloları:",
-        await sequelize.getQueryInterface().showAllTables()
-      );
+    const total = parseInt(countResults.total || 0);
+    const totalPages = Math.ceil(total / limit);
 
-      // İlk olarak filmlerin count bilgisini al
-      const [countResults] = await sequelize.query(countQuery, {
-        replacements: [userId],
-        type: sequelize.QueryTypes.SELECT,
-      });
+    // Filmleri getir
+    const movies = await sequelize.query(moviesQuery, {
+      replacements: [userId, limit, offset],
+      type: sequelize.QueryTypes.SELECT,
+    });
 
-      console.log("Count sonucu:", countResults);
+    // Film verilerini formatla
+    const formattedMovies = movies.map((movie) => {
+      let genres = [];
 
-      // Sonra filmleri getir
-      const movies = await sequelize.query(moviesQuery, {
-        replacements: [userId, limit, offset],
-        type: sequelize.QueryTypes.SELECT,
-      });
-
-      console.log(
-        `Kullanıcı ${userId} için ${movies.length} film bulundu (toplam: ${countResults.total})`
-      );
-
-      // Film verilerini düzenleyerek client'a göndermek için hazırla
-      const formattedMovies = movies.map((movie) => {
-        let genres = [];
-
-        // Film türleri ayrıştırma
-        try {
-          if (movie.genres) {
-            // String olarak saklanmış JSON'ı dönüştür
-            if (typeof movie.genres === "string") {
-              // SQL'den gelen string'i temizle ve JSON formatına dönüştür
-              const genresStr = movie.genres.replace(/'/g, '"');
-              try {
-                const parsedGenres = JSON.parse(genresStr);
-                genres = Array.isArray(parsedGenres)
-                  ? parsedGenres.map((g) =>
-                      typeof g === "object" ? g.name || g : g
-                    )
-                  : [genresStr];
-              } catch (e) {
-                console.warn(
-                  `Film ID ${movie.id} için tür JSON ayrıştırma hatası:`,
-                  e.message
-                );
-                genres = [movie.genres]; // Ayrıştırılamayan string'i doğrudan kullan
-              }
+      // Film türlerini JSON formatından dönüştür
+      try {
+        if (movie.genres) {
+          if (typeof movie.genres === "string") {
+            const genresStr = movie.genres.replace(/'/g, '"');
+            try {
+              const parsedGenres = JSON.parse(genresStr);
+              genres = Array.isArray(parsedGenres)
+                ? parsedGenres.map((g) =>
+                    typeof g === "object" ? g.name || g : g
+                  )
+                : [genresStr];
+            } catch (e) {
+              genres = [movie.genres];
             }
-            // Zaten JSON/array olarak geldiyse
-            else if (Array.isArray(movie.genres)) {
-              genres = movie.genres.map((g) =>
-                typeof g === "object" ? g.name || g : g
-              );
-            }
+          } else if (Array.isArray(movie.genres)) {
+            genres = movie.genres.map((g) =>
+              typeof g === "object" ? g.name || g : g
+            );
           }
-        } catch (error) {
-          console.warn(
-            `Film ID ${movie.id} için tür ayrıştırma hatası:`,
-            error.message
-          );
-          genres = [];
         }
-
-        return {
-          id: movie.id,
-          title: movie.title || "İsimsiz Film",
-          poster_path: movie.poster_path || "",
-          release_date: movie.release_date || "",
-          vote_average: movie.vote_average || 0,
-          genres: genres,
-          overview: movie.overview || "",
-          runtime: movie.runtime || 0,
-          watched_at: movie.watched_at,
-        };
-      });
-
-      // Yanıt döndür
-      return res.json({
-        success: true,
-        movies: formattedMovies,
-        pagination: {
-          total: parseInt(countResults.total || 0),
-          page,
-          limit,
-          totalPages: Math.ceil((countResults.total || 0) / limit),
-        },
-      });
-    } catch (sqlError) {
-      console.error("SQL sorgusu sırasında hata:", sqlError);
-
-      // Yedek olarak MoviesMetaData modelini kullanarak sorgu yap
-      console.log("Alternatif sorgu deneniyor...");
-
-      // UserMovie tablosundan sadece izlediği filmlerin ID'lerini al
-      const userMovieIds = await UserMovie.findAll({
-        where: {
-          UserId: userId,
-          status: "watched",
-        },
-        attributes: ["MoviesMetaDataId"],
-        raw: true,
-      });
-
-      if (userMovieIds.length === 0) {
-        return res.json({
-          success: true,
-          movies: [],
-          pagination: {
-            total: 0,
-            page,
-            limit,
-            totalPages: 0,
-          },
-        });
+      } catch (error) {
+        genres = [];
       }
 
-      // Film ID'lerini çıkar
-      const movieIds = userMovieIds.map((um) => um.MoviesMetaDataId);
-      console.log(
-        `Kullanıcı ${userId} için ${movieIds.length} film ID'si bulundu:`,
-        movieIds
-      );
+      return {
+        id: movie.id,
+        title: movie.title || "İsimsiz Film",
+        poster_path: movie.poster_path || "",
+        release_date: movie.release_date,
+        vote_average: movie.vote_average,
+        genres: genres,
+        overview: movie.overview || "",
+        runtime: movie.runtime,
+        watched_at: movie.watched_at,
+        adult: movie.adult || false,
+        original_language: movie.original_language || "en",
+      };
+    });
 
-      // Bu ID'lere göre filmleri getir
-      const movies = await MoviesMetaData.findAll({
-        where: {
-          id: movieIds,
-        },
-        attributes: [
-          "id",
-          "title",
-          "poster_path",
-          "release_date",
-          "vote_average",
-          "genres",
-          "overview",
-          "runtime",
-        ],
-        raw: true,
-      });
-
-      console.log(`${movies.length} film bulundu.`);
-
-      // Film verilerini düzenle
-      const formattedMovies = movies.map((movie) => {
-        let genres = [];
-
-        try {
-          if (movie.genres) {
-            if (typeof movie.genres === "string") {
-              const genresStr = movie.genres.replace(/'/g, '"');
-              try {
-                const parsedGenres = JSON.parse(genresStr);
-                genres = Array.isArray(parsedGenres)
-                  ? parsedGenres.map((g) =>
-                      typeof g === "object" ? g.name || g : g
-                    )
-                  : [genresStr];
-              } catch (e) {
-                genres = [movie.genres];
-              }
-            } else if (Array.isArray(movie.genres)) {
-              genres = movie.genres.map((g) =>
-                typeof g === "object" ? g.name || g : g
-              );
-            }
-          }
-        } catch (error) {
-          console.warn(
-            `Film ID ${movie.id} için tür ayrıştırma hatası:`,
-            error.message
-          );
-          genres = [];
-        }
-
-        return {
-          id: movie.id,
-          title: movie.title || "İsimsiz Film",
-          poster_path: movie.poster_path || "",
-          release_date: movie.release_date || "",
-          vote_average: movie.vote_average || 0,
-          genres: genres,
-          overview: movie.overview || "",
-          runtime: movie.runtime || 0,
-        };
-      });
-
-      return res.json({
-        success: true,
-        movies: formattedMovies,
-        pagination: {
-          total: movieIds.length,
-          page,
-          limit,
-          totalPages: Math.ceil(movieIds.length / limit),
-        },
-      });
-    }
+    // Sonuç döndür
+    return res.json({
+      success: true,
+      movies: formattedMovies,
+      pagination: {
+        total: total,
+        totalPages: totalPages,
+        page: page,
+        limit: limit,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      },
+    });
   } catch (error) {
-    console.error("İzlenen filmler alınırken hata:", error);
+    console.error("İzlenen filmler getirilirken hata:", error);
     return res.status(500).json({
       success: false,
-      message: `İzlenen filmler alınırken bir hata oluştu: ${error.message}`,
-      error: process.env.NODE_ENV === "development" ? error.stack : undefined,
+      message: "İzlenen filmler getirilirken bir hata oluştu",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -704,36 +490,27 @@ exports.getUserWatchedMovies = async (req, res) => {
 // Kullanıcı profil sayfası için izleme istatistiklerini getir
 exports.getUserWatchStats = async (req, res) => {
   try {
-    // URL'den kullanıcı ID'sini al
-    const userId = req.params.userId;
+    // Oturum kontrolü
+    const userId = req.userId;
 
-    // Kullanıcı kimliği kontrolü
     if (!userId) {
-      return res.status(400).json({
-        success: false,
-        message: "Geçerli bir kullanıcı ID'si gereklidir.",
+      return res.status(401).json({
+        message: "Bu işlem için giriş yapmalısınız.",
+        stats: getEmptyStats(),
       });
     }
 
-    // Kullanıcı varlık kontrolü
+    // Kullanıcı varlığını kontrol et
     const user = await User.findByPk(userId);
     if (!user) {
       return res.status(404).json({
-        success: false,
         message: "Kullanıcı bulunamadı.",
+        stats: getEmptyStats(),
       });
     }
 
-    // İzlenen film sayısını al
-    const watchedCount = await UserMovie.count({
-      where: {
-        UserId: userId,
-        status: "watched",
-      },
-    });
-
-    // En son izlenen filmi al
-    const lastWatched = await UserMovie.findOne({
+    // İzlenen filmleri getir
+    const watchedMovies = await UserMovie.findAll({
       where: {
         UserId: userId,
         status: "watched",
@@ -744,8 +521,9 @@ exports.getUserWatchStats = async (req, res) => {
           attributes: [
             "id",
             "title",
-            "poster_path",
             "release_date",
+            "runtime",
+            "genres",
             "vote_average",
           ],
         },
@@ -753,77 +531,216 @@ exports.getUserWatchStats = async (req, res) => {
       order: [["updatedAt", "DESC"]],
     });
 
-    // En çok izlenen türleri getir
-    const watchedMovies = await UserMovie.findAll({
-      where: {
-        UserId: userId,
-        status: "watched",
-      },
-      include: [
-        {
-          model: MoviesMetaData,
-          attributes: ["genres"],
-        },
-      ],
-    });
+    if (watchedMovies.length === 0) {
+      return res.json({ stats: getEmptyStats() });
+    }
 
-    // Film türlerini işle
-    const genreCounts = {};
-    watchedMovies.forEach((userMovie) => {
+    // İzlenen film sayısı
+    const totalWatched = watchedMovies.length;
+
+    // Toplam izleme süresini hesapla
+    let totalRuntime = 0;
+    let validMovieCount = 0;
+
+    watchedMovies.forEach((movie) => {
       try {
-        if (userMovie.MoviesMetaData && userMovie.MoviesMetaData.genres) {
-          const genresStr = userMovie.MoviesMetaData.genres.replace(/'/g, '"');
-          const genres = JSON.parse(genresStr);
+        if (movie && movie.MoviesMetaData) {
+          // Runtime değerini çeşitli yollarla almayı dene
+          let runtime = 0;
 
-          genres.forEach((genre) => {
-            if (genre && genre.name) {
-              genreCounts[genre.name] = (genreCounts[genre.name] || 0) + 1;
+          if (movie.MoviesMetaData.runtime) {
+            let parsedRuntime = parseInt(movie.MoviesMetaData.runtime, 10);
+
+            // String ise temizleyip tekrar dene
+            if (
+              isNaN(parsedRuntime) &&
+              typeof movie.MoviesMetaData.runtime === "string"
+            ) {
+              const cleanRuntime = movie.MoviesMetaData.runtime.replace(
+                /[^0-9]/g,
+                ""
+              );
+              parsedRuntime = parseInt(cleanRuntime, 10);
             }
-          });
+
+            // Obje ise value özelliğini kontrol et
+            if (
+              isNaN(parsedRuntime) &&
+              typeof movie.MoviesMetaData.runtime === "object"
+            ) {
+              if (movie.MoviesMetaData.runtime.value) {
+                parsedRuntime = parseInt(
+                  movie.MoviesMetaData.runtime.value,
+                  10
+                );
+              }
+            }
+
+            // Geçerli bir sayı elde edildiyse kullan
+            if (!isNaN(parsedRuntime) && parsedRuntime > 0) {
+              runtime = parsedRuntime;
+              validMovieCount++;
+            } else {
+              runtime = 120; // Varsayılan süre
+            }
+          } else {
+            runtime = 120; // Runtime yoksa varsayılan süre
+          }
+
+          totalRuntime += runtime;
+        } else {
+          totalRuntime += 120; // Film bilgisi yoksa varsayılan süre
         }
       } catch (error) {
-        console.warn(`Tür analizi hatası:`, error.message);
+        totalRuntime += 120; // Hata durumunda varsayılan süre
       }
     });
 
-    // Türleri en popülerden en aza doğru sırala
-    const topGenres = Object.entries(genreCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([name, count]) => ({ name, count }));
-
-    // İstatistikleri hazırla
-    let lastWatchedMovie = null;
-    if (lastWatched && lastWatched.MoviesMetaData) {
-      lastWatchedMovie = {
-        id: lastWatched.MoviesMetaData.id,
-        title: lastWatched.MoviesMetaData.title,
-        poster_path: lastWatched.MoviesMetaData.poster_path,
-        release_date: lastWatched.MoviesMetaData.release_date,
-        vote_average: lastWatched.MoviesMetaData.vote_average,
-        watched_at: lastWatched.updatedAt,
-      };
+    // Toplam süre hala 0 ise minimum değer ata
+    if (totalRuntime === 0 && watchedMovies.length > 0) {
+      totalRuntime = watchedMovies.length * 120;
     }
 
-    // Cevabı gönder
-    res.json({
-      success: true,
-      stats: {
-        watched_count: watchedCount,
-        last_watched: lastWatchedMovie,
-        top_genres: topGenres,
-      },
+    // Saatleri hesapla
+    const watchTimeHours = Math.max(Math.round(totalRuntime / 60), 0);
+
+    // Zamanı formatla
+    const watchTimeFormatted = formatWatchTime(totalRuntime);
+
+    // Favori türleri analiz et
+    const genreCounts = {};
+    watchedMovies.forEach((movie) => {
+      try {
+        if (movie.MoviesMetaData && movie.MoviesMetaData.genres) {
+          // JSON string'den tür bilgilerini çıkar
+          let genres = parseGenres(movie.MoviesMetaData.genres);
+
+          // Türleri say
+          genres.forEach((genre) => {
+            if (genre) {
+              genreCounts[genre] = (genreCounts[genre] || 0) + 1;
+            }
+          });
+        }
+      } catch (e) {
+        // Tür analizi hatasını yoksay
+      }
     });
 
-    console.log(
-      `Kullanıcı ${userId} için izleme istatistikleri getirildi. İzlenen film sayısı: ${watchedCount}`
-    );
+    // Türleri sayılarına göre sırala
+    const favoriteGenres = Object.keys(genreCounts)
+      .map((name) => ({ name, count: genreCounts[name] }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    // Son izlenen 5 filmi hazırla
+    const recentlyWatched = watchedMovies
+      .slice(0, 5)
+      .map((movie) => {
+        if (movie && movie.MoviesMetaData) {
+          return {
+            id: movie.MoviesMetaData.id,
+            title: movie.MoviesMetaData.title || "İsimsiz Film",
+            date: new Date(movie.updatedAt).toLocaleDateString("tr-TR"),
+          };
+        }
+        return null;
+      })
+      .filter(Boolean);
+
+    // İstatistikleri döndür
+    return res.json({
+      success: true,
+      stats: {
+        totalWatched,
+        favoriteGenres,
+        watchTimeFormatted,
+        watchTimeHours,
+        recentlyWatched,
+      },
+    });
   } catch (error) {
-    console.error("İzleme istatistikleri getirilirken hata:", error);
-    res.status(500).json({
-      success: false,
-      message: "İstatistikler getirilirken bir hata oluştu.",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    console.error("Kullanıcı istatistikleri alınırken hata:", error);
+
+    // Hata durumunda boş istatistik döndür
+    res.status(200).json({
+      success: true,
+      stats: getEmptyStats(),
+      error:
+        process.env.NODE_ENV === "development"
+          ? error.message
+          : "Sunucu hatası",
     });
   }
 };
+
+// Boş istatistikler için yardımcı fonksiyon
+function getEmptyStats() {
+  return {
+    totalWatched: 0,
+    favoriteGenres: [],
+    watchTimeFormatted: "0 dakika",
+    watchTimeHours: 0,
+    recentlyWatched: [],
+  };
+}
+
+// Zamanı formatla
+function formatWatchTime(minutes) {
+  if (minutes === 0) return "0 dakika";
+
+  const minute = minutes % 60;
+  const hour = Math.floor(minutes / 60) % 24;
+  const day = Math.floor(minutes / (60 * 24)) % 7;
+  const week = Math.floor(minutes / (60 * 24 * 7)) % 4;
+  const month = Math.floor(minutes / (60 * 24 * 30)) % 12;
+  const year = Math.floor(minutes / (60 * 24 * 365));
+
+  let result = [];
+
+  if (year > 0) result.push(`${year} yıl`);
+  if (month > 0) result.push(`${month} ay`);
+  if (week > 0) result.push(`${week} hafta`);
+  if (day > 0) result.push(`${day} gün`);
+  if (hour > 0) result.push(`${hour} saat`);
+  if (minute > 0) result.push(`${minute} dakika`);
+
+  // En büyük iki zaman birimini göster
+  return result.slice(0, 2).join(" ");
+}
+
+// Türleri ayrıştır
+function parseGenres(genresData) {
+  try {
+    if (!genresData) return [];
+
+    if (typeof genresData === "string") {
+      let genresStr = genresData
+        .replace(/'/g, '"')
+        .replace(/^[^[]*\[/, "[")
+        .replace(/\][^]]*$/, "]");
+
+      try {
+        const parsed = JSON.parse(genresStr);
+        return parsed.map((g) => g.name);
+      } catch (jsonError) {
+        // Alternatif regex yöntemiyle dene
+        const genreMatches = genresStr.match(/"name"\s*:\s*"([^"]+)"/g);
+        if (genreMatches) {
+          return genreMatches
+            .map((match) => {
+              const nameMatch = match.match(/"name"\s*:\s*"([^"]+)"/);
+              return nameMatch ? nameMatch[1] : "";
+            })
+            .filter(Boolean);
+        }
+      }
+    } else if (Array.isArray(genresData)) {
+      return genresData.map((g) => (typeof g === "object" ? g.name || g : g));
+    }
+
+    return [];
+  } catch (error) {
+    return [];
+  }
+}

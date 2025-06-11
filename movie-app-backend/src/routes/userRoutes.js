@@ -26,6 +26,7 @@ router.post("/login", userController.login);
 // Kimlik doğrulama gerektiren routelar
 router.get("/me", authenticateToken, userController.getCurrentUser);
 router.put("/me", authenticateToken, userController.updateUser);
+router.delete("/me", authenticateToken, userController.deleteUser);
 
 // İzlenen filmler route'ları
 router.get("/watched", authenticateToken, watchedController.getWatchedMovies);
@@ -36,18 +37,14 @@ router.delete(
   watchedController.removeWatchedMovie
 );
 
+// Kullanıcı istatistikleri endpoint'i
+router.get("/me/stats", authenticateToken, watchedController.getUserWatchStats);
+
 // Kullanıcı detaylı izlenen filmler route'u
 router.get(
   "/:userId/watched",
   authenticateToken,
   watchedController.getUserWatchedMovies
-);
-
-// Kullanıcı izleme istatistikleri
-router.get(
-  "/:userId/stats",
-  authenticateToken,
-  watchedController.getUserWatchStats
 );
 
 // Watchlist route'ları
