@@ -1,57 +1,57 @@
-# Film Öneri Sistemi
+# Movie Recommendation System
 
-Bu belge, film öneri sistemini 3002 portunda nasıl çalıştıracağınızı açıklar.
+This document explains how to run the movie recommendation system on port 3002.
 
-## Genel Bakış
+## Overview
 
-Film öneri sistemi, ana backendden ayrı bir portta çalıştırılarak şu avantajları sağlar:
+The movie recommendation system runs on a separate port from the main backend, providing the following advantages:
 
-- Önerilerin hesaplanması diğer API işlemlerini engellemez
-- Daha fazla kaynak tahsis edilebilir
-- Yüksek yük altında daha iyi performans sunar
+- Calculating recommendations does not block other API operations
+- More resources can be allocated
+- Better performance under high load
 
-## Başlatma Talimatları
+## Startup Instructions
 
-### 1. Terminal Komutu ile Başlatma (En Kolay Yöntem)
+### 1. Starting with Terminal Command (Easiest Method)
 
-Aşağıdaki komutu yeni bir terminal penceresinde çalıştırın:
+Run the following command in a new terminal window:
 
 ```bash
 cd movie-app-backend
 PORT=3002 npm start
 ```
 
-### 2. Özel Başlatma Dosyası ile Başlatma
+### 2. Starting with Custom Startup File
 
-Oluşturduğumuz özel başlatma dosyasını kullanarak da başlatabilirsiniz:
+You can also start it using our custom startup file:
 
 ```bash
 cd movie-app-backend
 node start-recommendations.js
 ```
 
-Bu dosya, ortam değişkenlerini otomatik olarak ayarlayarak backend'i 3002 portunda başlatır.
+This file automatically sets the environment variables to start the backend on port 3002.
 
-### 3. PM2 ile Başlatma (Üretim Ortamları İçin)
+### 3. Starting with PM2 (For Production Environments)
 
-PM2 süreç yöneticisini kullanarak arka planda çalıştırabilirsiniz:
+You can run it in the background using the PM2 process manager:
 
 ```bash
-# PM2 yükle (eğer yüklü değilse)
+# Install PM2 (if not installed)
 npm install -g pm2
 
-# Backend'i 3002 portunda başlat
+# Start the backend on port 3002
 cd movie-app-backend
 pm2 start start-recommendations.js --name "movie-recommendations"
 ```
 
-## Sorun Giderme
+## Troubleshooting
 
-Eğer `ERR_CONNECTION_REFUSED` hatası alıyorsanız:
+If you encounter an `ERR_CONNECTION_REFUSED` error:
 
-1. Uygulamanın 3002 portunda çalıştığından emin olun
-2. Başka bir uygulamanın 3002 portunu kullanmadığını kontrol edin
-3. Aşağıdaki komutla hangi portların kullanımda olduğunu kontrol edebilirsiniz:
+1. Ensure the application is running on port 3002
+2. Check that no other application is using port 3002
+3. You can check which ports are in use with the following command:
 
    ```bash
    # Windows
@@ -61,6 +61,6 @@ Eğer `ERR_CONNECTION_REFUSED` hatası alıyorsanız:
    lsof -i :3002
    ```
 
-## Frontend Yapılandırması
+## Frontend Configuration
 
-Frontend, öneri sistemi için 3002 portuna istek yapacak şekilde yapılandırılmalıdır. Bu yapılandırma `movie-app/lib/config.ts` dosyasında ve `.env.local` dosyasında bulunmaktadır.
+The frontend should be configured to make requests to port 3002 for the recommendation system. This configuration is located in the `movie-app/lib/config.ts` file and the `.env.local` file.
