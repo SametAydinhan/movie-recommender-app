@@ -1,66 +1,67 @@
-# Film Öneri Uygulaması
+# Movie Recommendation Application
 
-Bu proje, kullanıcıların film önerileri alabileceği ve izledikleri filmleri takip edebileceği bir web uygulamasıdır. Backend ve frontend olmak üzere iki ana bileşenden oluşur.
+This project is a web application that allows users to receive movie recommendations and track their watched movies. It consists of two main components: backend and frontend.
 
-## Proje Yapısı
+## Project Structure
 
-- **movie-app-backend**: Backend API ve film öneri sistemi
-- **movie-app**: Next.js ile geliştirilmiş frontend uygulaması
-- **movie-poster-updater**: Film posterlerini güncellemek için kullanılan araç
+- **movie-app-backend**: Backend API and movie recommendation system
+- **movie-app**: Frontend application developed with Next.js
+- **movie-poster-updater**: Tool used to update movie posters
 
-## Başlangıç
+## Getting Started
 
-### Backend Kurulumu
+### Backend Setup
 
-1. Backend klasörüne gidin:
+1. Navigate to the backend folder:
    ```bash
    cd movie-app-backend
    ```
 
-2. Bağımlılıkları yükleyin:
+2. Install dependencies:
    ```bash
    npm install
    ```
 
-3. Uygulamayı başlatın:
+3. Start the application:
    ```bash
    npm run dev
    ```
-4. Öneri sistemi için yeni bir port ayağa kaldırın:
+
+4. Launch a new port for the recommendation system:
    ```bash
    node start-recommendations.js
    ```
 
-### Frontend Kurulumu
+### Frontend Setup
 
-1. Frontend klasörüne gidin:
+1. Navigate to the frontend folder:
    ```bash
    cd movie-app
    ```
 
-2. Bağımlılıkları yükleyin:
+2. Install dependencies:
    ```bash
    npm install
    ```
 
-3. Geliştirme sunucusunu başlatın:
+3. Start the development server:
    ```bash
    npm run dev
    ```
 
-4. Tarayıcınızda [http://localhost:3000](http://localhost:3000) adresini açın.
+4. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## Film Öneri Sistemi
+## Movie Recommendation System
 
-Film öneri sistemi, ana backendden ayrı bir portta çalıştırılarak şu avantajları sağlar:
+The movie recommendation system runs on a separate port from the main backend, providing the following advantages:
 
-- Önerilerin hesaplanması diğer API işlemlerini engellemez
-- Daha fazla kaynak tahsis edilebilir
-- Yüksek yük altında daha iyi performans sunar
+- Calculating recommendations does not block other API operations
+- More resources can be allocated
+- Better performance under high load
 
-Detaylı bilgi için [movie-app-backend/README-RECOMMENDATIONS.md](movie-app-backend/README-RECOMMENDATIONS.md) dosyasına bakabilirsiniz.
+For more details, see the [movie-app-backend/README-RECOMMENDATIONS.md](movie-app-backend/README-RECOMMENDATIONS.md) file.
 
-## Ekran Görüntüleri
+## Screenshots
 ![image](https://github.com/user-attachments/assets/ba58f637-d579-46e4-be39-d6c6266adbc9)
 ![image](https://github.com/user-attachments/assets/a1bab2ef-9814-4cab-a744-815d9d470f37)
 ![image](https://github.com/user-attachments/assets/734e6398-efd5-47b8-87e6-7cbab3c358c0)
@@ -74,15 +75,4 @@ Detaylı bilgi için [movie-app-backend/README-RECOMMENDATIONS.md](movie-app-bac
 ![image](https://github.com/user-attachments/assets/f127403c-d95e-4e99-8bd9-1ec59dbc7afa)
 ![image](https://github.com/user-attachments/assets/13f638e4-c049-493a-afdd-43f6068b8a38)
 
-
-
-
-
-
-
-
-
-
-
-
-<!-- Buraya ekran görüntüleri eklenecek -->
+<!-- Screenshots will be added here -->
