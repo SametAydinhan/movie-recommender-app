@@ -274,3 +274,40 @@ exports.getWatchlist = async (req, res) => {
     res.status(500).json({ message: "Sunucu hatası." });
   }
 };
+
+// Kullanıcı hesabını silme
+exports.deleteUser = async (req, res) => {
+  try {
+    // Auth middleware'den gelen kullanıcı ID'si
+    const userId = req.userId;
+
+    // Kullanıcıyı bul
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Kullanıcı bulunamadı." });
+    }
+
+    // Kullanıcının izleme listeleri ve izlenen filmlerini sil
+    await UserMovie.destroy({
+      where: {
+        UserId: userId,
+      },
+    });
+
+    // Kullanıcı hesabını sil
+    await user.destroy();
+
+    // Yanıt gönder
+    res.json({
+      success: true,
+      message: "Hesabınız başarıyla silindi.",
+    });
+  } catch (error) {
+    console.error("Kullanıcı hesabı silinirken hata:", error);
+    res.status(500).json({
+      success: false,
+      message:
+        "Hesap silinirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.",
+    });
+  }
+};

@@ -2,11 +2,27 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
-    domains: [
-      "m.media-amazon.com",
-      "image.tmdb.org",
-      "www.themoviedb.org",
-      "ia.media-imdb.com",
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "image.tmdb.org",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "m.media-amazon.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "www.themoviedb.org",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "ia.media-imdb.com",
+        pathname: "/**",
+      },
     ],
   },
   // Chrome uzantılarından kaynaklanan hydration sorunlarını çözer

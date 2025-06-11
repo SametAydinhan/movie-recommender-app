@@ -2,10 +2,15 @@
 
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Navbar from "@/components/Navbar";
+import Navbar from "@/app/components/Navbar";
 import { Provider } from "react-redux";
 import { store } from "@/store/store";
 import { useEffect, useState } from "react";
+import { Toaster } from "react-hot-toast";
+import { usePathname } from "next/navigation";
+
+// Sayfa geçişlerini kaydetmek için api-navigation'dan fonksiyonları import et
+import { recordNavigation, recordPageLoad } from "@/lib/utils/api-navigation";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -20,6 +25,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   const [domLoaded, setDomLoaded] = useState(false);
+  const pathname = usePathname(); // Sayfa yolunu izle
 
   // localStorage erişimini test etmek için kullanılır
   function isLocalStorageAvailable() {
@@ -80,6 +86,22 @@ export default function RootLayout({
     return () => observer.disconnect();
   }, [domLoaded]);
 
+  // Sayfa geçişlerini izle
+  useEffect(() => {
+    if (domLoaded) {
+      console.log("Sayfa geçişi algılandı:", pathname);
+      recordNavigation(); // Sayfa geçişini kaydet
+    }
+  }, [pathname, domLoaded]);
+
+  // Sayfa yüklemesini kaydet
+  useEffect(() => {
+    if (domLoaded) {
+      console.log("Sayfa yüklemesi kaydediliyor");
+      recordPageLoad(); // Sayfa yüklemesini kaydet
+    }
+  }, [domLoaded]);
+
   return (
     <html lang='tr' suppressHydrationWarning>
       <head>
@@ -87,9 +109,10 @@ export default function RootLayout({
         <meta name='viewport' content='width=device-width, initial-scale=1' />
         <title>Movie App</title>
       </head>
-      <body className={inter.className} suppressHydrationWarning>
+      <body className={`${inter.className} pt-16`} suppressHydrationWarning>
         {domLoaded ? (
           <Provider store={store}>
+            <Toaster position='top-right' />
             <Navbar />
             <div suppressHydrationWarning>{children}</div>
           </Provider>

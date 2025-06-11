@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { getAuthToken } from "@/utils/auth";
+import { getAuthToken, getUserNameFromStorage } from "@/utils/auth";
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -37,6 +37,11 @@ const authSlice = createSlice({
     checkUserAuth: (state) => {
       if (typeof window !== "undefined") {
         state.isAuthenticated = !!getAuthToken();
+        // localStorage'dan kullanıcı adını al
+        const storedUserName = getUserNameFromStorage();
+        if (storedUserName) {
+          state.userName = storedUserName;
+        }
       } else {
         state.isAuthenticated = false;
       }

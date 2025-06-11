@@ -1,45 +1,53 @@
 "use client";
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import Image from "next/image";
-import Link from "next/link";
-import { FaStar, FaStarHalf, FaRegStar, FaSearch } from "react-icons/fa";
+import { useRouter } from "next/navigation";
 import { getAuthToken } from "@/utils/auth";
-
-interface Movie {
-  id: number;
-  title: string;
-  poster_path: string;
-  vote_average: number;
-  vote_count: number;
-  release_date: string;
-  runtime: number;
-  overview: string;
-  genres: string;
-  belongs_to_collection: any; // Koleksiyon bilgisi, null olabilir
-  tmdbId?: string; // TMDB kimliği, API'den geliyor
-}
+import type { Movie } from "@/lib/types";
+import { formatDate, getStarRating, parseGenres } from "@/lib/utils/formatters";
+import { loadPosterImages, isCollectionEmpty } from "@/lib/utils/image";
+import { fetchMovies, toggleWatchedMovie } from "@/lib/utils/api-movies";
+import { MoviesHeader, MovieList, Pagination } from "@/app/components/Movies";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState, AppDispatch } from "@/store/store";
+import {
+  fetchWatchedMoviesAsync,
+  addToWatched,
+  removeFromWatched,
+  setWatchlistMovies,
+} from "@/store/features/moviesSlice";
 
 export default function Movies() {
+  const dispatch = useDispatch<AppDispatch>();
+  // Redux'tan izlenen filmler ve izleme listesi
+  const { watchedMovies, watchlistMovies } = useSelector(
+    (state: RootState) => state.movies
+  );
+
   const [movies, setMovies] = useState<Movie[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
-  const [contentLoading, setContentLoading] = useState(false); // Sadece içerik için yükleme durumu
+  const [contentLoading, setContentLoading] = useState(false);
   const [error, setError] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
   const [isImageLoading, setIsImageLoading] = useState<{
     [key: number]: boolean;
   }>({});
 
-  // İzlenen filmler listesi için state
-  const [watchedMovies, setWatchedMovies] = useState<number[]>([]);
-  // İzleme listesindeki filmler için state
-  const [watchlistMovies, setWatchlistMovies] = useState<number[]>([]);
   // Açık menüyü izleme için state
   const [openMenu, setOpenMenu] = useState<number | null>(null);
 
-  // Search input için ref
+  // Filmler için posterler
+  const [moviePosters, setMoviePosters] = useState<{ [key: number]: string }>(
+    {}
+  );
+
+  // Kullanıcının oturum durumunu kontrol et
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [token, setToken] = useState("");
+  const router = useRouter();
+
+  // Arama giriş alanı için ref
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Varsayılan resimler kütüphanesi
@@ -50,15 +58,6 @@ export default function Movies() {
     "/movie-placeholder-4.jpg",
     "/movie-placeholder-5.jpg",
   ];
-
-  // Filmler için posterler
-  const [moviePosters, setMoviePosters] = useState<{ [key: number]: string }>(
-    {}
-  );
-
-  // Kullanıcının oturum durumunu kontrol et
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [token, setToken] = useState("");
 
   // Sayfa yüklendiğinde token kontrolü yap
   useEffect(() => {
@@ -72,221 +71,137 @@ export default function Movies() {
         setIsLoggedIn(false);
         setToken("");
         console.log("Kullanıcı giriş yapmamış");
+        // Giriş yapmamış kullanıcıları ana sayfaya yönlendir
+        router.push("/");
       }
     };
 
     checkAuth();
-  }, []);
+  }, [router]);
 
-  // Sayfa yüklendiğinde localStorage'dan izlenen filmleri getir
+  // Sayfa yüklendiğinde Redux'taki filmler güncelleme
   useEffect(() => {
-    const savedWatchedMovies = localStorage.getItem("watchedMovies");
-    if (savedWatchedMovies) {
-      try {
-        setWatchedMovies(JSON.parse(savedWatchedMovies));
-      } catch (error) {
-        console.error("İzlenen filmler yüklenirken hata:", error);
-        localStorage.removeItem("watchedMovies");
-      }
+    // Kullanıcı giriş yapmışsa API'den izlenen filmleri getir
+    if (isLoggedIn) {
+      dispatch(fetchWatchedMoviesAsync());
     }
 
-    // İzleme listesi filmlerini getir
+    // İzleme listesi filmlerini getir (localStorage'dan)
     const savedWatchlistMovies = localStorage.getItem("watchlistMovies");
     if (savedWatchlistMovies) {
       try {
-        setWatchlistMovies(JSON.parse(savedWatchlistMovies));
+        const parsedWatchlist = JSON.parse(savedWatchlistMovies);
+        dispatch(setWatchlistMovies(parsedWatchlist));
       } catch (error) {
         console.error("İzleme listesi yüklenirken hata:", error);
         localStorage.removeItem("watchlistMovies");
       }
     }
-  }, []);
-
-  // İzlenen filmler güncellendiğinde localStorage'a kaydet
-  useEffect(() => {
-    localStorage.setItem("watchedMovies", JSON.stringify(watchedMovies));
-  }, [watchedMovies]);
+  }, [dispatch, isLoggedIn]);
 
   // İzleme listesi güncellendiğinde localStorage'a kaydet
   useEffect(() => {
     localStorage.setItem("watchlistMovies", JSON.stringify(watchlistMovies));
   }, [watchlistMovies]);
 
-  // Debounce mekanizması - her yazmada değil, yazma durduktan sonra arama yapar
+  // Sayfanın her yüklenmesinde ve arama terimi/sayfa değişikliğinde filmleri getir
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-    }, 500); // 500ms bekleme süresi
+    if (isLoggedIn) {
+      getMovies();
+    }
+  }, [isLoggedIn, currentPage, searchTerm]);
 
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
-
-  // Arama değiştiğinde sayfayı 1'e sıfırla
+  // Dışarı tıklandığında menüyü kapat
   useEffect(() => {
-    setCurrentPage(1);
-  }, [debouncedSearchTerm]);
-
-  // Film verilerini getiren fonksiyon - useCallback ile sararak yeniden oluşturulmasını önlüyoruz
-  const fetchMovies = useCallback(async () => {
-    // Sadece içerik bölümünü yükleme durumuna getir
-    setContentLoading(true);
-
-    try {
-      // API URL'ini oluştur
-      let apiUrl = "";
-
-      // Arama yapılıyorsa SearchMovies API'sini kullan
-      if (debouncedSearchTerm.trim() !== "") {
-        // Frontend'in kullandığı basit arama API'sini kullan
-        apiUrl = `http://localhost:3001/api/movies/search?page=${currentPage}&limit=20&search=${encodeURIComponent(
-          debouncedSearchTerm.trim()
-        )}`;
-      } else {
-        apiUrl = `http://localhost:3001/api/movies?page=${currentPage}&limit=20`;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (openMenu !== null) {
+        const target = e.target as HTMLElement;
+        if (
+          !target.closest(".menu-button") &&
+          !target.closest(".dropdown-menu")
+        ) {
+          setOpenMenu(null);
+        }
       }
+    };
 
-      console.log("API isteği yapılıyor:", apiUrl);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [openMenu]);
 
-      try {
-        const response = await fetch(apiUrl, {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-          cache: "no-store",
+  // Filmleri getir
+  const getMovies = async () => {
+    setContentLoading(true);
+    try {
+      const result = await fetchMovies(currentPage, searchTerm);
+
+      if (result.error) {
+        setError(result.error || "Filmler yüklenemedi");
+        setMovies([]);
+      } else {
+        setMovies(result.movies);
+        setTotalPages(result.pagination?.totalPages || 1);
+
+        // Posterler için yükleme durumlarını ayarla
+        const loadingStates: { [key: number]: boolean } = {};
+        result.movies.forEach((movie) => {
+          loadingStates[movie.id] = true;
         });
+        setIsImageLoading(loadingStates);
 
-        if (!response.ok) {
-          throw new Error(
-            `API hatası: ${response.status} - ${response.statusText}`
-          );
-        }
-
-        const data = await response.json();
-        console.log("API yanıtı:", data);
-
-        let moviesData: Movie[] = [];
-
-        // API'nin döndürdüğü veri yapısını kontrol et
-        if (data.results) {
-          // Eski API formatı (results içinde)
-          moviesData = Array.isArray(data.results) ? data.results : [];
-          setTotalPages(data.total_pages || 1);
-        } else if (data.movies) {
-          // Yeni API formatı (movies içinde)
-          moviesData = Array.isArray(data.movies) ? data.movies : [];
-          setTotalPages(data.totalPages || 1);
-        } else {
-          // Hiçbir format uyumlu değilse, veriyi doğrudan kontrol et
-          console.log("Doğrudan veri kontrolü:", data);
-          if (Array.isArray(data)) {
-            moviesData = data;
-            setTotalPages(1);
-          } else {
-            moviesData = [];
-            setError("API'den geçerli veri alınamadı.");
-          }
-        }
-
-        setMovies(moviesData);
-      } catch (fetchError: any) {
-        console.error("Fetch işlemi sırasında hata:", fetchError);
-        throw new Error(`Sunucuya bağlanılamıyor: ${fetchError.message}`);
+        // Posterleri yükle
+        const posterUrls = await loadMoviePosters(result.movies);
+        setMoviePosters(posterUrls);
       }
     } catch (error: any) {
-      console.error("Filmler alınırken hata:", error);
-      setError(`Filmler yüklenemedi: ${error.message || "Bilinmeyen hata"}`);
+      console.error("Filmler getirme hatası:", error);
+      setError(error.message || "Filmler yüklenemedi");
       setMovies([]);
     } finally {
       setLoading(false);
       setContentLoading(false);
     }
-  }, [currentPage, debouncedSearchTerm]);
+  };
 
-  // Film verilerini getir
-  useEffect(() => {
-    // Sayfa ilk yüklemede tüm sayfayı yükleniyor göster, sonraki sorgularda sadece içeriği
-    if (currentPage === 1 && !debouncedSearchTerm) {
-      setLoading(true);
-    }
+  // Film posterlerini yükle
+  const loadMoviePosters = async (movies: Movie[]) => {
+    // Her film için resim URL'si oluştur
+    const posterUrls: { [key: number]: string } = {};
 
-    fetchMovies();
+    for (const movie of movies) {
+      try {
+        // Film ID kontrolü
+        if (!movie || !movie.id) {
+          console.error("Geçersiz film verisi:", movie);
+          continue;
+        }
 
-    // Odak kontrolünü burada yapmayalım, bu farklı bir etkileşimdir
-  }, [currentPage, debouncedSearchTerm, fetchMovies]);
-
-  // Odağı koruma için ayrı bir useEffect (bu sadece odağı yönetir)
-  useEffect(() => {
-    // Odağı getir - eğer debouncedSearchTerm değiştiyse ve searchInputRef mevcut ise
-    if (searchInputRef.current) {
-      searchInputRef.current.focus();
-    }
-  }, [movies]); // movies değiştiğinde (veri yüklendiğinde) odağı geri getir
-
-  // Film kapak resimlerini hazırla
-  useEffect(() => {
-    // Movies kontrol et
-    if (!movies || movies.length === 0) {
-      return; // Filmler yoksa işlem yapma
-    }
-
-    // Her film için resim durumunu başlangıçta yükleniyor olarak ayarla
-    const loadingStates: { [key: number]: boolean } = {};
-    movies.forEach((movie) => {
-      loadingStates[movie.id] = true;
-    });
-    setIsImageLoading(loadingStates);
-
-    const loadPosterImages = async () => {
-      // Her film için resim URL'si oluştur
-      const posterUrls: { [key: number]: string } = {};
-
-      for (const movie of movies) {
-        try {
-          // Film ID kontrolü
-          if (!movie || !movie.id) {
-            console.error("Geçersiz film verisi:", movie);
-            continue;
-          }
-
-          // Koleksiyon kontrolü - özel bir fonksiyon kullanarak durumu kontrol et
-          const collectionIsEmpty = isCollectionEmpty(
-            movie.belongs_to_collection
+        // Backend'den gelen poster_url varsa onu kullan
+        if (movie.poster_url) {
+          console.log(
+            `Film ${movie.id} için backend'den gelen poster URL kullanılıyor: ${movie.poster_url}`
           );
+          posterUrls[movie.id] = movie.poster_url;
+          setIsImageLoading((prev) => ({ ...prev, [movie.id]: false }));
+          continue; // Diğer kontrolleri atla
+        }
 
-          // 1. Öncelikle TMDB ID'si varsa ve null değilse o ID üzerinden doğrudan resim URL'i oluştur
-          if (
-            movie.tmdbId &&
-            movie.tmdbId !== "null" &&
-            movie.tmdbId !== null
-          ) {
-            console.log(
-              `Film ${movie.id} için TMDB ID bulundu: ${movie.tmdbId}`
-            );
-            const tmdbId = movie.tmdbId;
+        // Koleksiyon kontrolü
+        const collectionIsEmpty = isCollectionEmpty(
+          movie.belongs_to_collection
+        );
 
-            // TMDB'nin resim URL'si
-            let tmdbPosterUrl;
+        // 1. Öncelikle TMDB ID'si varsa ve null değilse o ID üzerinden doğrudan resim URL'i oluştur
+        if (movie.tmdbId && movie.tmdbId !== "null" && movie.tmdbId !== null) {
+          console.log(`Film ${movie.id} için TMDB ID bulundu: ${movie.tmdbId}`);
+          const tmdbId = movie.tmdbId;
 
-            // Önce poster_path kontrolü yap
-            if (
-              movie.poster_path &&
-              movie.poster_path !== "null" &&
-              movie.poster_path !== ""
-            ) {
-              const posterPath = movie.poster_path.startsWith("/")
-                ? movie.poster_path
-                : `/${movie.poster_path}`;
-              tmdbPosterUrl = `https://image.tmdb.org/t/p/w500${posterPath}`;
-            } else {
-              // Poster yoksa TMDB ID'si üzerinden default resim oluştur
-              tmdbPosterUrl = `https://www.themoviedb.org/t/p/w500/movie/${tmdbId}`;
-            }
+          // TMDB'nin resim URL'si
+          let tmdbPosterUrl;
 
-            posterUrls[movie.id] = tmdbPosterUrl;
-            setIsImageLoading((prev) => ({ ...prev, [movie.id]: false }));
-            continue; // Diğer kontrolleri atla
-          }
-
-          // 2. TMDB ID yoksa, poster_path'e bak
+          // Önce poster_path kontrolü yap
           if (
             movie.poster_path &&
             movie.poster_path !== "null" &&
@@ -295,58 +210,73 @@ export default function Movies() {
             const posterPath = movie.poster_path.startsWith("/")
               ? movie.poster_path
               : `/${movie.poster_path}`;
-
-            // Resim URL'si oluştur - TMDB'nin doğru yapısını kullan
-            const tmdbUrl = `https://image.tmdb.org/t/p/w500${posterPath}`;
-
-            // Varsayılan olarak kullanılabilir kabul et
-            posterUrls[movie.id] = tmdbUrl;
-
-            // Resim yüklendi olarak işaretle
-            setIsImageLoading((prev) => ({ ...prev, [movie.id]: false }));
+            tmdbPosterUrl = `https://image.tmdb.org/t/p/w500${posterPath}`;
           } else {
-            // 3. Poster yoksa koleksiyon durumuna göre default resim belirle
-            // Koleksiyon boşsa, özel No-Poster kullan
-            if (collectionIsEmpty) {
-              posterUrls[movie.id] = "/No-Poster.png";
-            } else {
-              // Koleksiyon var ama poster path yok - varsayılan movie-placeholder kullan
-              const defaultImageIndex = movie.id % defaultImages.length;
-              posterUrls[movie.id] = defaultImages[defaultImageIndex];
-            }
-            // Resim yüklendi
-            setIsImageLoading((prev) => ({ ...prev, [movie.id]: false }));
+            // Poster yoksa TMDB ID'si üzerinden default resim oluştur
+            tmdbPosterUrl = `https://www.themoviedb.org/t/p/w500/movie/${tmdbId}`;
           }
-        } catch (error) {
-          console.error(`Film ${movie.id} için resim yüklenirken hata:`, error);
-          // Hata durumunda varsayılan resim
-          posterUrls[movie.id] = "/No-Poster.png";
-          // Resim yüklendi (hatayla da olsa)
+
+          posterUrls[movie.id] = tmdbPosterUrl;
+          setIsImageLoading((prev) => ({ ...prev, [movie.id]: false }));
+          continue; // Diğer kontrolleri atla
+        }
+
+        // 2. TMDB ID yoksa, poster_path'e bak
+        if (
+          movie.poster_path &&
+          movie.poster_path !== "null" &&
+          movie.poster_path !== ""
+        ) {
+          const posterPath = movie.poster_path.startsWith("/")
+            ? movie.poster_path
+            : `/${movie.poster_path}`;
+
+          // Resim URL'si oluştur
+          const tmdbUrl = `https://image.tmdb.org/t/p/w500${posterPath}`;
+
+          // Varsayılan olarak kullanılabilir kabul et
+          posterUrls[movie.id] = tmdbUrl;
+
+          // Resim yüklendi olarak işaretle
+          setIsImageLoading((prev) => ({ ...prev, [movie.id]: false }));
+        } else {
+          // 3. Poster yoksa koleksiyon durumuna göre default resim belirle
+          // Koleksiyon boşsa, özel No-Poster kullan
+          if (collectionIsEmpty) {
+            posterUrls[movie.id] = "/No-Poster.png";
+          } else {
+            // Koleksiyon var ama poster path yok
+            const defaultImageIndex = movie.id % defaultImages.length;
+            posterUrls[movie.id] = defaultImages[defaultImageIndex];
+          }
+          // Resim yüklendi
           setIsImageLoading((prev) => ({ ...prev, [movie.id]: false }));
         }
+      } catch (error) {
+        console.error(`Film ${movie.id} için resim yüklenirken hata:`, error);
+        // Hata durumunda varsayılan resim
+        posterUrls[movie.id] = "/No-Poster.png";
+        // Resim yüklendi (hatayla da olsa)
+        setIsImageLoading((prev) => ({ ...prev, [movie.id]: false }));
       }
-
-      setMoviePosters(posterUrls);
-    };
-
-    if (movies.length > 0) {
-      loadPosterImages();
     }
-  }, [movies]);
+
+    return posterUrls;
+  };
 
   // Film izleme listesine ekleme/çıkarma
-  const toggleWatchedMovie = async (e: React.MouseEvent, movieId: number) => {
+  const handleWatchedToggle = async (e: React.MouseEvent, movieId: number) => {
     e.preventDefault(); // Link'in çalışmasını engelle
     e.stopPropagation(); // Event'in parent'lara ulaşmasını engelle
 
-    // localStorage yerine auth.ts'den gelen getAuthToken() ile token kontrolü yap
-    const currentToken = getAuthToken();
-
     // Kullanıcı giriş yapmış mı kontrol et
-    if (!currentToken) {
+    if (!isLoggedIn) {
       alert("Bu işlemi yapabilmek için giriş yapmalısınız.");
       return;
     }
+
+    // Menüyü kapat
+    setOpenMenu(null);
 
     console.log(
       "İzlenenlere ekleme/çıkarma işlemi başlatıldı. Film ID:",
@@ -357,264 +287,73 @@ export default function Movies() {
     const isAlreadyWatched = watchedMovies.includes(movieId);
 
     try {
+      // Önce Redux'u güncelle (optimistik güncelleme)
       if (isAlreadyWatched) {
-        // Listeden çıkar
-        const newWatchedMovies = watchedMovies.filter((id) => id !== movieId);
-
-        // UI'da güncelleyelim
-        setWatchedMovies(newWatchedMovies);
-
-        console.log("İzlenenlerden çıkarılıyor:", movieId);
-
-        try {
-          // Veritabanından silme işlemi yap
-          const response = await fetch(
-            `http://localhost:3001/api/users/watched/${movieId}`,
-            {
-              method: "DELETE",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${currentToken}`,
-              },
-            }
-          );
-
-          console.log("Sunucu yanıt durumu:", response.status);
-
-          if (!response.ok) {
-            // Hata durumunda UI'ı geri al
-            setWatchedMovies([...watchedMovies]);
-
-            let errorMessage = "Filmler listeden çıkarılırken bir hata oluştu";
-
-            try {
-              const errorData = await response.json();
-              console.error("API yanıt hatası:", errorData);
-              errorMessage =
-                errorData.message ||
-                errorData.error ||
-                "Filmler listeden çıkarılırken bir hata oluştu";
-            } catch (jsonError) {
-              console.error(
-                "API yanıtı JSON olarak ayrıştırılamadı:",
-                jsonError
-              );
-            }
-
-            throw new Error(errorMessage);
-          }
-
-          console.log("Silme işlemi başarılı. Yanıt kodu:", response.status);
-        } catch (apiError: any) {
-          console.error("API isteği hatası:", apiError);
-          // UI'ı geri al
-          setWatchedMovies([...watchedMovies]);
-          throw apiError; // Tekrar fırlat, ana catch bloğu yakalayacak
-        }
+        // Redux state'ini güncelle - listeden çıkar
+        dispatch(removeFromWatched(movieId));
       } else {
-        // Listeye ekle
-        const newWatchedMovies = [...watchedMovies, movieId];
-
-        // UI'da güncelleyelim
-        setWatchedMovies(newWatchedMovies);
-
-        console.log("İzlenenlere ekleniyor:", movieId);
-
-        try {
-          const response = await fetch(
-            `http://localhost:3001/api/users/watched`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${currentToken}`,
-              },
-              body: JSON.stringify({ movieId }),
-            }
-          );
-
-          console.log("Sunucu yanıt durumu:", response.status);
-
-          // Yanıtı kontrol et
-          if (!response.ok) {
-            // Hata durumunda UI'ı geri al
-            setWatchedMovies([...watchedMovies]);
-
-            let errorMessage = "İzlenen film eklenemedi";
-
-            try {
-              const errorData = await response.json();
-              console.error("API yanıt hatası:", errorData);
-              errorMessage =
-                errorData.message ||
-                errorData.error ||
-                "İzlenen film eklenemedi";
-            } catch (jsonError) {
-              console.error(
-                "API yanıtı JSON olarak ayrıştırılamadı:",
-                jsonError
-              );
-            }
-
-            throw new Error(errorMessage);
-          }
-
-          const data = await response.json();
-          console.log("İzlenen film ekleme başarılı. Yanıt:", data);
-        } catch (apiError: any) {
-          console.error("API isteği hatası:", apiError);
-          // UI'ı geri al
-          setWatchedMovies(watchedMovies.filter((id) => id !== movieId));
-          throw apiError; // Tekrar fırlat, ana catch bloğu yakalayacak
-        }
+        // Redux state'ini güncelle - listeye ekle
+        dispatch(addToWatched(movieId));
       }
+
+      // API isteğini yap
+      const result = await toggleWatchedMovie(movieId, isAlreadyWatched);
+
+      if (!result.success) {
+        // API işlemi başarısız olursa, Redux değişikliklerini geri al
+        if (isAlreadyWatched) {
+          dispatch(addToWatched(movieId));
+        } else {
+          dispatch(removeFromWatched(movieId));
+        }
+
+        throw new Error(result.message);
+      }
+
+      // Başarı mesajını göster
+      alert(result.message);
     } catch (error: any) {
-      console.error("İzlenen film listesi güncellenirken hata:", error);
-
-      // Hata durumunda UI'ı geri al - Bu kısma genelde düşmeyecek çünkü API catch bloğu UI'ı zaten güncelliyor
-      if (isAlreadyWatched) {
-        setWatchedMovies([...watchedMovies]); // Eski listeyi geri yükle
-      } else {
-        setWatchedMovies(watchedMovies.filter((id) => id !== movieId)); // İlave edilen ID'yi kaldır
-      }
-
-      // Kullanıcıya hata mesajı göster
-      alert(
-        "İşlem sırasında bir hata oluştu: " +
-          (error.message || "Bilinmeyen hata")
-      );
+      console.error("Film listesini güncelleme hatası:", error);
+      alert(error.message || "İşlem sırasında bir hata oluştu");
     }
+  };
+
+  // İzleme listesine ekleme/çıkarma için yeni fonksiyon
+  const handleAddToWatchlist = (e: React.MouseEvent, movieId: number) => {
+    e.preventDefault();
+    e.stopPropagation();
 
     // Menüyü kapat
     setOpenMenu(null);
+
+    // Watchlist'te olup olmadığını kontrol et
+    const isInWatchlist = watchlistMovies.includes(movieId);
+
+    // Redux'ta watchlist'i güncelle
+    if (isInWatchlist) {
+      // Dispatch remove from watchlist
+      dispatch({ type: "movies/removeFromWatchlist", payload: movieId });
+    } else {
+      // Dispatch add to watchlist
+      dispatch({ type: "movies/addToWatchlist", payload: movieId });
+    }
+
+    // Başarı mesajı göster
+    alert(
+      isInWatchlist
+        ? "Film izleme listenizden çıkarıldı"
+        : "Film izleme listenize eklendi"
+    );
   };
 
   // Menüyü açma/kapama
   const toggleMenu = (e: React.MouseEvent, movieId: number) => {
     e.preventDefault(); // Link'in çalışmasını engelle
     e.stopPropagation(); // Event'in parent'lara ulaşmasını engelle
-
     setOpenMenu(openMenu === movieId ? null : movieId);
   };
 
-  // Sayfa tıklaması ile menüyü kapat
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      // Eğer tıklanan eleman menü veya menü butonu değilse menüyü kapat
-      const target = e.target as HTMLElement;
-      if (
-        !target.closest(".dropdown-menu") &&
-        !target.closest(".menu-button")
-      ) {
-        setOpenMenu(null);
-      }
-    };
-
-    document.addEventListener("click", handleClickOutside);
-    return () => {
-      document.removeEventListener("click", handleClickOutside);
-    };
-  }, []);
-
-  // Koleksiyon boş mu kontrol et - tüm olası durumları kontrol eder
-  const isCollectionEmpty = (collection: any): boolean => {
-    // Null veya undefined kontrolü
-    if (collection === null || collection === undefined) {
-      return true;
-    }
-
-    // Boş string kontrolü
-    if (collection === "") {
-      return true;
-    }
-
-    // Boş JSON string kontrolü: "{}" veya "[]"
-    if (typeof collection === "string") {
-      const trimmed = collection.trim();
-      if (trimmed === "{}" || trimmed === "[]" || trimmed === "") {
-        return true;
-      }
-
-      // JSON string içinde anlamlı veri var mı kontrol et
-      try {
-        const parsed = JSON.parse(trimmed);
-        return (
-          (Array.isArray(parsed) && parsed.length === 0) || // Boş array
-          (typeof parsed === "object" &&
-            parsed !== null &&
-            Object.keys(parsed).length === 0) // Boş obje
-        );
-      } catch {
-        // JSON parse hatası - geçerli bir JSON değil
-        return false;
-      }
-    }
-
-    // Obje kontrolü
-    if (typeof collection === "object" && collection !== null) {
-      // Boş obje veya boş array kontrolü
-      if (Array.isArray(collection)) {
-        return collection.length === 0;
-      }
-      return Object.keys(collection).length === 0;
-    }
-
-    // Hiçbir duruma uymuyorsa, değer var kabul et
-    return false;
-  };
-
-  // Yıldız sayısını hesaplayan yardımcı fonksiyon
-  const getStarRating = (rating: number) => {
-    // 10 üzerinden değerlendirmeyi 5 üzerine çevir
-    const convertedRating = rating / 2;
-    const fullStars = Math.floor(convertedRating);
-    const hasHalfStar = convertedRating % 1 >= 0.5;
-    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
-
-    return (
-      <div className='flex items-center'>
-        {[...Array(fullStars)].map((_, i) => (
-          <FaStar key={`full_${i}`} className='text-yellow-400 w-4 h-4' />
-        ))}
-        {hasHalfStar && <FaStarHalf className='text-yellow-400 w-4 h-4' />}
-        {[...Array(emptyStars)].map((_, i) => (
-          <FaRegStar key={`empty_${i}`} className='text-yellow-400 w-4 h-4' />
-        ))}
-      </div>
-    );
-  };
-
-  // Tarih formatını daha kısa ve düzenli hale getirme
-  const formatDate = (dateString: string): string => {
-    if (!dateString) return "";
-    try {
-      const date = new Date(dateString);
-
-      // Daha kısa format: "15 Oca 2021" gibi
-      return new Intl.DateTimeFormat("tr-TR", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      }).format(date);
-    } catch (error) {
-      return "";
-    }
-  };
-
-  // Türleri ayrıştırma
-  const parseGenres = (genresString: string): string => {
-    try {
-      if (!genresString) return "";
-      const genres = JSON.parse(genresString);
-      if (Array.isArray(genres) && genres.length > 0) {
-        return genres.map((genre: any) => genre.name).join(", ");
-      }
-      return "";
-    } catch (error) {
-      return "";
-    }
-  };
-
+  // Sayfa değiştirme işlemi
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
       setCurrentPage(newPage);
@@ -622,6 +361,7 @@ export default function Movies() {
     }
   };
 
+  // Arama işlemi
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
   };
@@ -629,154 +369,7 @@ export default function Movies() {
   // Form submit olduğunda sayfanın yenilenmesini engelle
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Zaten input değiştiğinde otomatik arama yapılıyor,
-    // burada sadece form submit'i engellemek yeterli
   };
-
-  // Film kartlarını renderla
-  const renderMovieCard = (movie: Movie) => (
-    <div key={movie.id} className='relative group'>
-      <Link
-        href={`/movies/${movie.id}`}
-        className='block bg-white rounded-lg shadow-md overflow-hidden transform transition-transform duration-200 hover:-translate-y-2'
-      >
-        <div className='relative w-full h-[300px]'>
-          {/* Yükleme durumu göstergesi */}
-          {isImageLoading[movie.id] && (
-            <div className='absolute inset-0 flex items-center justify-center bg-gray-200'>
-              <div className='animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500'></div>
-            </div>
-          )}
-
-          {/* Film posteri */}
-          {moviePosters[movie.id] && (
-            <div
-              className={`w-full h-full transition-opacity duration-300 ${
-                isImageLoading[movie.id] ? "opacity-0" : "opacity-100"
-              }`}
-            >
-              <Image
-                src={moviePosters[movie.id]}
-                alt={movie.title}
-                fill
-                sizes='(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw'
-                style={{ objectFit: "cover" }}
-                className='w-full h-full transition-opacity duration-300'
-                unoptimized
-              />
-            </div>
-          )}
-
-          {/* Üç nokta menü butonu */}
-          <button
-            onClick={(e) => toggleMenu(e, movie.id)}
-            className='menu-button absolute top-2 right-2 w-8 h-8 rounded-full bg-black bg-opacity-50 flex items-center justify-center text-white hover:bg-opacity-70 z-30'
-            aria-label='Menüyü aç'
-          >
-            <svg
-              xmlns='http://www.w3.org/2000/svg'
-              className='h-5 w-5'
-              viewBox='0 0 20 20'
-              fill='currentColor'
-            >
-              <path
-                fillRule='evenodd'
-                d='M10 2a2 2 0 110 4 2 2 0 010-4zm0 6a2 2 0 110 4 2 2 0 010-4zm0 6a2 2 0 110 4 2 2 0 010-4z'
-                clipRule='evenodd'
-              />
-            </svg>
-          </button>
-
-          {/* İzlendi işareti - Eğer izlenmişse */}
-          {watchedMovies.includes(movie.id) && (
-            <div className='absolute top-2 left-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-md z-10'>
-              İzlendi
-            </div>
-          )}
-
-          {/* İzleme listesinde işareti */}
-          {watchlistMovies.includes(movie.id) &&
-            !watchedMovies.includes(movie.id) && (
-              <div className='absolute top-2 left-2 bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded-md z-10'>
-                İzleme Listemde
-              </div>
-            )}
-
-          {/* Açılır menü */}
-          {openMenu === movie.id && (
-            <div className='dropdown-menu absolute top-12 right-2 w-48 bg-white rounded-md shadow-lg z-40 overflow-hidden'>
-              <button
-                onClick={(e) => toggleWatchedMovie(e, movie.id)}
-                className='w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 flex items-center'
-              >
-                {watchedMovies.includes(movie.id) ? (
-                  <>
-                    <svg
-                      className='w-4 h-4 mr-2'
-                      fill='none'
-                      stroke='currentColor'
-                      viewBox='0 0 24 24'
-                      xmlns='http://www.w3.org/2000/svg'
-                    >
-                      <path
-                        strokeLinecap='round'
-                        strokeLinejoin='round'
-                        strokeWidth={2}
-                        d='M6 18L18 6M6 6l12 12'
-                      />
-                    </svg>
-                    İzlenenlerden Çıkar
-                  </>
-                ) : (
-                  <>
-                    <svg
-                      className='w-4 h-4 mr-2'
-                      fill='none'
-                      stroke='currentColor'
-                      viewBox='0 0 24 24'
-                      xmlns='http://www.w3.org/2000/svg'
-                    >
-                      <path
-                        strokeLinecap='round'
-                        strokeLinejoin='round'
-                        strokeWidth={2}
-                        d='M5 13l4 4L19 7'
-                      />
-                    </svg>
-                    İzlediklerime Ekle
-                  </>
-                )}
-              </button>
-            </div>
-          )}
-        </div>
-        <div className='p-4'>
-          {/* Film başlığı */}
-          <h3
-            className='text-lg font-semibold text-gray-800 truncate mb-2'
-            title={movie.title}
-          >
-            {movie.title}
-          </h3>
-
-          {/* Puan yıldızları */}
-          <div className='flex items-center mb-2'>
-            {getStarRating(movie.vote_average)}
-            <span className='text-sm text-gray-600 ml-1'>
-              ({movie.vote_average.toFixed(1)})
-            </span>
-          </div>
-
-          {/* Tarih - yeni stilde */}
-          <div className='text-sm text-gray-600 truncate'>
-            <span className='bg-gray-100 px-2 py-1 rounded-md text-xs inline-block'>
-              {formatDate(movie.release_date)}
-            </span>
-          </div>
-        </div>
-      </Link>
-    </div>
-  );
 
   if (loading) {
     return (
@@ -800,91 +393,37 @@ export default function Movies() {
   return (
     <div className='min-h-screen pb-16'>
       <div className='max-w-7xl mx-auto px-4 pt-16'>
-        <div className='flex flex-col md:flex-row justify-between items-center mb-12'>
-          <div className='flex flex-col mb-4 md:mb-0'>
-            <h1 className='text-4xl font-bold text-white mb-2'>Tüm Filmler</h1>
-            <div className='flex space-x-4 mt-2'>
-              <Link
-                href='/my-movies'
-                className='text-green-400 hover:text-green-300 flex items-center'
-              >
-                <span className='bg-green-600 rounded-full w-4 h-4 mr-2 flex items-center justify-center text-xs'>
-                  ✓
-                </span>
-                İzlediklerim
-              </Link>
-            </div>
-          </div>
+        {/* Başlık ve Arama Formu */}
+        <MoviesHeader
+          searchTerm={searchTerm}
+          onSearch={handleSearch}
+          onSubmit={handleSubmit}
+          searchInputRef={searchInputRef}
+          contentLoading={contentLoading}
+        />
 
-          {/* Arama formu */}
-          <form onSubmit={handleSubmit} className='relative w-full md:w-96'>
-            <input
-              type='text'
-              placeholder='Film adına göre ara...'
-              value={searchTerm}
-              onChange={handleSearch}
-              className='w-full px-4 py-3 pl-10 rounded-full bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500'
-              ref={searchInputRef}
-              autoFocus
-            />
-            <FaSearch className='absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400' />
-            {contentLoading && (
-              <div className='absolute right-3 top-1/2 transform -translate-y-1/2'>
-                <div className='animate-spin h-5 w-5 border-2 border-blue-500 rounded-full border-t-transparent'></div>
-              </div>
-            )}
-          </form>
-        </div>
-
-        {/* Film içeriği - Sadece filmler yüklenirken bu bölüm güncellenir */}
-        <div className='movie-content-section'>
-          {contentLoading ? (
-            <div className='flex justify-center items-center py-20'>
-              <div className='animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500'></div>
-            </div>
-          ) : (
-            <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6'>
-              {movies && movies.length > 0 ? (
-                movies.map((movie) => renderMovieCard(movie))
-              ) : (
-                <div className='col-span-full text-center py-10'>
-                  <p className='text-white text-xl'>Film bulunamadı.</p>
-                </div>
-              )}
-            </div>
-          )}
+        {/* Film İçeriği - Ana film içeriği */}
+        <div className='movie-content-section mb-8'>
+          <MovieList
+            movies={movies}
+            isLoading={contentLoading}
+            posters={moviePosters}
+            imageLoadingStates={isImageLoading}
+            watchedMovies={watchedMovies}
+            watchlistMovies={watchlistMovies}
+            openMenu={openMenu}
+            onToggleMenu={toggleMenu}
+            onWatchedToggle={handleWatchedToggle}
+            onAddToWatchlist={handleAddToWatchlist}
+          />
 
           {/* Sayfalama */}
           {!contentLoading && movies.length > 0 && (
-            <div className='flex justify-center items-center mt-12 space-x-2'>
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className={`px-4 py-2 rounded ${
-                  currentPage === 1
-                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                    : "bg-blue-600 text-white hover:bg-blue-700"
-                }`}
-              >
-                &laquo; Önceki
-              </button>
-
-              <div className='text-white px-4 py-2'>
-                Sayfa {currentPage} / {totalPages}
-              </div>
-
-              <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className={`px-4 py-2 rounded ${
-                  currentPage === totalPages
-                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                    : "bg-blue-600 text-white hover:bg-blue-700"
-                }`}
-              >
-                Sonraki &raquo;
-              </button>
-            </div>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
           )}
         </div>
       </div>

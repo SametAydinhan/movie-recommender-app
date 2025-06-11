@@ -1,0 +1,5 @@
+Bu dosya, film posteri olmadığı durumlarda veya film posteri yüklenemediğinde kullanmak için hazırlanmıştır.
+
+Gerçek bir uygulama için bir "no-poster.png" görseli oluşturarak veya satın alarak public klasörüne eklemeniz önerilir.
+
+Örnek olarak 300x450 piksel boyutunda gri arka planlı "Film Posteri Yok" yazılı bir PNG oluşturabilirsiniz. 
